@@ -5,8 +5,20 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.URL;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.Properties;
+
+import javax.mail.Message;
+import javax.mail.MessagingException;
+import javax.mail.Session;
+import javax.mail.Transport;
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeBodyPart;
+import javax.mail.internet.MimeMessage;
+import javax.mail.internet.MimeMultipart;
 
 import net.xeoh.plugins.base.annotations.PluginImplementation;
 
@@ -234,6 +246,17 @@ public class PdfDeliveryPlugin implements IStepPlugin, IPlugin {
 		}
 
 		// - mail versenden
+		String[] mail = {"robert.sehr@intranda.com", "jan@intranda.com"};
+		try {
+			postMail(mail, "pdf download", downloadUrl);
+		} catch (UnsupportedEncodingException e) {
+			createMessages("MailError", e);
+			return false;
+		} catch (MessagingException e) {
+			createMessages("MailError", e);
+			return false;
+		}
+		
 		return true;
 	}
 
@@ -279,4 +302,72 @@ public class PdfDeliveryPlugin implements IStepPlugin, IPlugin {
 
 	}
 
+	public void postMail(String recipients[], String subject, String message) throws MessagingException, UnsupportedEncodingException {
+		boolean debug = false;
+
+		String SMTP_SERVER = ConfigPlugins.getPluginConfig(this).getString("SMTP_SERVER", "mail.intranda.com");
+		String SMTP_USER = ConfigPlugins.getPluginConfig(this).getString("SMTP_USER", "TODO");
+		String SMTP_PASSWORD = ConfigPlugins.getPluginConfig(this).getString("SMTP_PASSWORD", "TODO");
+		String SMTP_USE_STARTTLS = ConfigPlugins.getPluginConfig(this).getString("SMTP_USE_STARTTLS", "0");
+		String SMTP_USE_SSL = ConfigPlugins.getPluginConfig(this).getString("SMTP_USE_SSL", "1");
+		String SENDER_ADDRESS = ConfigPlugins.getPluginConfig(this).getString("SENDER_ADDRESS", "TODO");
+
+		// Set the host smtp address
+		Properties props = new Properties();
+		if (SMTP_USE_STARTTLS != null && SMTP_USE_STARTTLS.equals("1")) {
+			props.setProperty("mail.transport.protocol", "smtp");
+			props.setProperty("mail.smtp.auth", "true");
+			props.setProperty("mail.smtp.port", "25");
+			props.setProperty("mail.smtp.host", SMTP_SERVER);
+			props.setProperty("mail.smtp.ssl.trust", "*");
+			props.setProperty("mail.smtp.starttls.enable", "true");
+			props.setProperty("mail.smtp.starttls.required", "true");
+		} else if (SMTP_USE_SSL != null && SMTP_USE_SSL.equals("1")) {
+			props.setProperty("mail.transport.protocol", "smtp");
+			props.setProperty("mail.smtp.host", SMTP_SERVER);
+			props.setProperty("mail.smtp.auth", "true");
+			props.setProperty("mail.smtp.port", "465");
+			props.setProperty("mail.smtp.ssl.enable", "true");
+			props.setProperty("mail.smtp.ssl.trust", "*");
+
+		} else {
+			props.setProperty("mail.transport.protocol", "smtp");
+			props.setProperty("mail.smtp.auth", "true");
+			props.setProperty("mail.smtp.port", "25");
+			props.setProperty("mail.smtp.host", SMTP_SERVER);
+		}
+
+		Session session = Session.getDefaultInstance(props, null);
+		session.setDebug(debug);
+		Message msg = new MimeMessage(session);
+
+		InternetAddress addressFrom = new InternetAddress(SENDER_ADDRESS, "Robert Sehr");
+		msg.setFrom(addressFrom);
+
+		InternetAddress[] addressTo = new InternetAddress[recipients.length];
+		for (int i = 0; i < recipients.length; i++) {
+			addressTo[i] = new InternetAddress(recipients[i]);
+		}
+		msg.setRecipients(Message.RecipientType.TO, addressTo);
+
+		// Optional : You can also set your custom headers in the Email if you
+		// Want
+		// msg.addHeader("MyHeaderName", "myHeaderValue");
+
+		msg.setSubject(subject);
+
+		MimeBodyPart messagePart = new MimeBodyPart();
+		messagePart.setText(message, "utf-8");
+		messagePart.setHeader("Content-Type", "text/plain; charset=\"utf-8\"");
+		MimeMultipart multipart = new MimeMultipart();
+		multipart.addBodyPart(messagePart);
+
+		msg.setContent(multipart);
+		msg.setSentDate(new Date());
+
+		Transport transport = session.getTransport();
+		transport.connect(SMTP_USER, SMTP_PASSWORD);
+		transport.sendMessage(msg, msg.getRecipients(Message.RecipientType.TO));
+		transport.close();
+	}
 }
