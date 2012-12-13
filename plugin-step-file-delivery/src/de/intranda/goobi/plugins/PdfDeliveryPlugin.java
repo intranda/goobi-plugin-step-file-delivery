@@ -13,6 +13,7 @@ import net.xeoh.plugins.base.annotations.PluginImplementation;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpStatus;
 import org.apache.commons.httpclient.methods.GetMethod;
+import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 import org.goobi.production.cli.helper.WikiFieldHelper;
 import org.goobi.production.enums.PluginGuiType;
@@ -36,6 +37,7 @@ import de.sub.goobi.Persistence.ProzessDAO;
 import de.sub.goobi.Persistence.apache.ProcessManager;
 import de.sub.goobi.Persistence.apache.StepObject;
 import de.sub.goobi.config.ConfigMain;
+import de.sub.goobi.config.ConfigPlugins;
 import de.sub.goobi.helper.Helper;
 import de.sub.goobi.helper.encryption.MD5;
 import de.sub.goobi.helper.exceptions.DAOException;
@@ -51,10 +53,9 @@ public class PdfDeliveryPlugin implements IStepPlugin, IPlugin {
 	// private Schritt step;
 	private Prozess process;
 	private String returnPath;
-	
-	
+
 	// TODO generate value
-	private String internalServletPath = "http://localhost/Goobi19";
+	private String internalServletPath = "http://localhost:8080/Goobi19";
 
 	@Override
 	public PluginType getType() {
@@ -93,32 +94,30 @@ public class PdfDeliveryPlugin implements IStepPlugin, IPlugin {
 	public void execute() {
 		// - Metadaten validieren
 
-		
-		// TODO sicherstellen das filegroup local erzeugt und in im gcs für pdf eingestellt wurde
+		// TODO sicherstellen das filegroup PDF erzeugt und in im gcs für pdf eingestellt wurde
 		MetadatenVerifizierungWithoutHibernate mv = new MetadatenVerifizierungWithoutHibernate();
 		if (!mv.validate(process)) {
 			createMessage(Helper.getTranslation("InvalidMetadata"), null);
+			return;
 		}
-
-		
+		String tempfolder = ConfigMain.getParameter("", "/opt/digiverso/goobi/temp/");
+		MD5 md5 = new MD5(process.getTitel());
+		// - umbenennen in unique Namen
+		File pdfFile = new File(tempfolder, md5.getMD5() + "_" + process.getTitel() + ".pdf");
+		String metsfile = tempfolder + process.getTitel() + "_mets.xml";
 		// - PDF erzeugen
 		GetMethod method = null;
 		try {
 			ExportMets em = new ExportMets();
-			String tempfolder = ConfigMain.getParameter("", "/opt/digiverso/goobi/temp/");
 
 			em.startExport(process, tempfolder);
-			String metsfile = tempfolder + process.getTitel() + "_mets.xml";
 
 			URL goobiContentServerUrl = null;
 			String contentServerUrl = ConfigMain.getParameter("goobiContentServerUrl");
 
-			MD5 md5 = new MD5(process.getTitel());
-			// - umbenennen in unique Namen
-			File finalPdf = new File(tempfolder, md5.getMD5() + "_" + process.getTitel() + ".pdf");
 			Integer contentServerTimeOut = ConfigMain.getIntParameter("goobiContentServerTimeOut", 60000);
 			if (contentServerUrl == null || contentServerUrl.length() == 0) {
-				contentServerUrl = this.internalServletPath + "/gcs/gcs?action=pdf&metsFile=";
+				contentServerUrl = this.internalServletPath + "/gcs/gcs?action=pdf&metsFile=file://";
 			}
 			goobiContentServerUrl = new URL(contentServerUrl + metsfile);
 
@@ -136,7 +135,7 @@ public class PdfDeliveryPlugin implements IStepPlugin, IPlugin {
 
 			InputStream inStream = method.getResponseBodyAsStream();
 			BufferedInputStream bis = new BufferedInputStream(inStream);
-			FileOutputStream fos = new FileOutputStream(finalPdf);
+			FileOutputStream fos = new FileOutputStream(pdfFile);
 			byte[] bytes = new byte[8192];
 			int count = bis.read(bytes);
 			while (count != -1 && count <= 8192) {
@@ -191,8 +190,18 @@ public class PdfDeliveryPlugin implements IStepPlugin, IPlugin {
 				method.releaseConnection();
 			}
 		}
-		
+
 		// - an anderen Ort kopieren
+		String destination = ConfigPlugins.getPluginConfig(this).getString("destinationFolder", "/opt/digiverso/pdfexport/");
+		try {
+			FileUtils.copyFileToDirectory(pdfFile, new File(destination));
+			FileUtils.deleteQuietly(pdfFile);
+			FileUtils.deleteQuietly(new File(metsfile));
+		} catch (IOException e) {
+			createMessage(Helper.getTranslation("IOError"), e);
+			return;
+		}
+
 		// - Name/Link als Property speichern
 		// - mail versenden
 
