@@ -30,6 +30,7 @@ import ugh.exceptions.TypeNotAllowedForParentException;
 import ugh.exceptions.WriteException;
 
 import de.sub.goobi.Beans.Prozess;
+import de.sub.goobi.Beans.Prozesseigenschaft;
 import de.sub.goobi.Beans.Schritt;
 import de.sub.goobi.Export.download.ExportMets;
 import de.sub.goobi.Metadaten.MetadatenVerifizierungWithoutHibernate;
@@ -53,6 +54,8 @@ public class PdfDeliveryPlugin implements IStepPlugin, IPlugin {
 	// private Schritt step;
 	private Prozess process;
 	private String returnPath;
+
+	private static final String PROPERTYTITLE = "PDFURL";
 
 	// TODO generate value
 	private String internalServletPath = "http://localhost:8080/Goobi19";
@@ -91,19 +94,19 @@ public class PdfDeliveryPlugin implements IStepPlugin, IPlugin {
 	}
 
 	@Override
-	public void execute() {
+	public boolean execute() {
 		// - Metadaten validieren
 
 		// TODO sicherstellen das filegroup PDF erzeugt und in im gcs für pdf eingestellt wurde
 		MetadatenVerifizierungWithoutHibernate mv = new MetadatenVerifizierungWithoutHibernate();
 		if (!mv.validate(process)) {
-			createMessage(Helper.getTranslation("InvalidMetadata"), null);
-			return;
+			createMessages(Helper.getTranslation("InvalidMetadata"), null);
+			return false;
 		}
 		String tempfolder = ConfigMain.getParameter("", "/opt/digiverso/goobi/temp/");
 		MD5 md5 = new MD5(process.getTitel());
 		// - umbenennen in unique Namen
-		File pdfFile = new File(tempfolder, md5.getMD5() + "_" + process.getTitel() + ".pdf");
+		File pdfFile = new File(tempfolder, System.currentTimeMillis() + md5.getMD5() + "_" + process.getTitel() + ".pdf");
 		String metsfile = tempfolder + process.getTitel() + "_mets.xml";
 		// - PDF erzeugen
 		GetMethod method = null;
@@ -129,8 +132,8 @@ public class PdfDeliveryPlugin implements IStepPlugin, IPlugin {
 			int statusCode = httpclient.executeMethod(method);
 			if (statusCode != HttpStatus.SC_OK) {
 				logger.error("HttpStatus nicht ok", null);
-				logger.debug("Response is:\n" + method.getResponseBodyAsString());
-				return;
+				createMessages(Helper.getTranslation("PDFCreationError"), null);
+				return false;
 			}
 
 			InputStream inStream = method.getResponseBodyAsStream();
@@ -150,41 +153,41 @@ public class PdfDeliveryPlugin implements IStepPlugin, IPlugin {
 
 			// TODO individuelle Fehlermeldungen
 		} catch (PreferencesException e) {
-			createMessage(Helper.getTranslation("InvalidMetadata"), e);
-			return;
+			createMessages(Helper.getTranslation("InvalidMetadata"), e);
+			return false;
 		} catch (WriteException e) {
-			createMessage(Helper.getTranslation("InvalidMetadata"), e);
-			return;
+			createMessages(Helper.getTranslation("InvalidMetadata"), e);
+			return false;
 		} catch (DocStructHasNoTypeException e) {
-			createMessage(Helper.getTranslation("InvalidMetadata"), e);
-			return;
+			createMessages(Helper.getTranslation("InvalidMetadata"), e);
+			return false;
 		} catch (MetadataTypeNotAllowedException e) {
-			createMessage(Helper.getTranslation("InvalidMetadata"), e);
-			return;
+			createMessages(Helper.getTranslation("InvalidMetadata"), e);
+			return false;
 		} catch (ExportFileException e) {
-			createMessage(Helper.getTranslation("InvalidMetadata"), e);
-			return;
+			createMessages(Helper.getTranslation("InvalidMetadata"), e);
+			return false;
 		} catch (UghHelperException e) {
-			createMessage(Helper.getTranslation("InvalidMetadata"), e);
-			return;
+			createMessages(Helper.getTranslation("InvalidMetadata"), e);
+			return false;
 		} catch (ReadException e) {
-			createMessage(Helper.getTranslation("InvalidMetadata"), e);
-			return;
+			createMessages(Helper.getTranslation("InvalidMetadata"), e);
+			return false;
 		} catch (SwapException e) {
-			createMessage(Helper.getTranslation("InvalidMetadata"), e);
-			return;
+			createMessages(Helper.getTranslation("InvalidMetadata"), e);
+			return false;
 		} catch (DAOException e) {
-			createMessage(Helper.getTranslation("InvalidMetadata"), e);
-			return;
+			createMessages(Helper.getTranslation("InvalidMetadata"), e);
+			return false;
 		} catch (TypeNotAllowedForParentException e) {
-			createMessage(Helper.getTranslation("InvalidMetadata"), e);
-			return;
+			createMessages(Helper.getTranslation("InvalidMetadata"), e);
+			return false;
 		} catch (IOException e) {
-			createMessage(Helper.getTranslation("InvalidMetadata"), e);
-			return;
+			createMessages(Helper.getTranslation("InvalidMetadata"), e);
+			return false;
 		} catch (InterruptedException e) {
-			createMessage(Helper.getTranslation("InvalidMetadata"), e);
-			return;
+			createMessages(Helper.getTranslation("InvalidMetadata"), e);
+			return false;
 		} finally {
 			if (method != null) {
 				method.releaseConnection();
@@ -193,18 +196,45 @@ public class PdfDeliveryPlugin implements IStepPlugin, IPlugin {
 
 		// - an anderen Ort kopieren
 		String destination = ConfigPlugins.getPluginConfig(this).getString("destinationFolder", "/opt/digiverso/pdfexport/");
+		String donwloadServer = ConfigPlugins.getPluginConfig(this).getString("donwloadServer", "http://localhost:8080/Goobi19/");
+		String downloadUrl = donwloadServer + pdfFile.getName();
 		try {
 			FileUtils.copyFileToDirectory(pdfFile, new File(destination));
 			FileUtils.deleteQuietly(pdfFile);
 			FileUtils.deleteQuietly(new File(metsfile));
 		} catch (IOException e) {
-			createMessage(Helper.getTranslation("IOError"), e);
-			return;
+			createMessages(Helper.getTranslation("IOError"), e);
+			return false;
 		}
 
 		// - Name/Link als Property speichern
-		// - mail versenden
 
+		boolean matched = false;
+		for (Prozesseigenschaft pe : process.getEigenschaftenList()) {
+			if (pe.getTitel().equals(PROPERTYTITLE)) {
+				pe.setWert(downloadUrl);
+				matched = true;
+				break;
+			}
+		}
+
+		if (!matched) {
+			Prozesseigenschaft pe = new Prozesseigenschaft();
+			pe.setTitel(PROPERTYTITLE);
+			pe.setWert(downloadUrl);
+			process.getEigenschaften().add(pe);
+			pe.setProzess(process);
+		}
+
+		try {
+			new ProzessDAO().save(process);
+		} catch (DAOException e) {
+			createMessages(Helper.getTranslation("fehlerNichtSpeicherbar"), e);
+			return false;
+		}
+
+		// - mail versenden
+		return true;
 	}
 
 	@Override
@@ -236,7 +266,7 @@ public class PdfDeliveryPlugin implements IStepPlugin, IPlugin {
 		return PluginGuiType.NONE;
 	}
 
-	private void createMessage(String message, Exception e) {
+	private void createMessages(String message, Exception e) {
 		if (e != null) {
 			Helper.setFehlerMeldung(message, e);
 			ProcessManager.addLogfile(WikiFieldHelper.getWikiMessage(process.getWikifield(), "error", message), process.getId());
