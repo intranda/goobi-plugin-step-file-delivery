@@ -112,7 +112,7 @@ public class PdfDeliveryPlugin implements IStepPlugin, IPlugin {
 		// TODO sicherstellen das filegroup PDF erzeugt und in im gcs für pdf eingestellt wurde
 		MetadatenVerifizierungWithoutHibernate mv = new MetadatenVerifizierungWithoutHibernate();
 		if (!mv.validate(process)) {
-			createMessages(Helper.getTranslation("InvalidMetadata"), null);
+			createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), null);
 			return false;
 		}
 		String tempfolder = ConfigMain.getParameter("", "/opt/digiverso/goobi/temp/");
@@ -144,7 +144,7 @@ public class PdfDeliveryPlugin implements IStepPlugin, IPlugin {
 			int statusCode = httpclient.executeMethod(method);
 			if (statusCode != HttpStatus.SC_OK) {
 				logger.error("HttpStatus nicht ok", null);
-				createMessages(Helper.getTranslation("PDFCreationError"), null);
+				createMessages(Helper.getTranslation("PluginErrorPDFCreationError"), null);
 				return false;
 			}
 
@@ -165,40 +165,40 @@ public class PdfDeliveryPlugin implements IStepPlugin, IPlugin {
 
 			// TODO individuelle Fehlermeldungen
 		} catch (PreferencesException e) {
-			createMessages(Helper.getTranslation("InvalidMetadata"), e);
+			createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
 			return false;
 		} catch (WriteException e) {
-			createMessages(Helper.getTranslation("InvalidMetadata"), e);
+			createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
 			return false;
 		} catch (DocStructHasNoTypeException e) {
-			createMessages(Helper.getTranslation("InvalidMetadata"), e);
+			createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
 			return false;
 		} catch (MetadataTypeNotAllowedException e) {
-			createMessages(Helper.getTranslation("InvalidMetadata"), e);
+			createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
 			return false;
 		} catch (ExportFileException e) {
-			createMessages(Helper.getTranslation("InvalidMetadata"), e);
+			createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
 			return false;
 		} catch (UghHelperException e) {
-			createMessages(Helper.getTranslation("InvalidMetadata"), e);
+			createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
 			return false;
 		} catch (ReadException e) {
-			createMessages(Helper.getTranslation("InvalidMetadata"), e);
+			createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
 			return false;
 		} catch (SwapException e) {
-			createMessages(Helper.getTranslation("InvalidMetadata"), e);
+			createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
 			return false;
 		} catch (DAOException e) {
-			createMessages(Helper.getTranslation("InvalidMetadata"), e);
+			createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
 			return false;
 		} catch (TypeNotAllowedForParentException e) {
-			createMessages(Helper.getTranslation("InvalidMetadata"), e);
+			createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
 			return false;
 		} catch (IOException e) {
-			createMessages(Helper.getTranslation("InvalidMetadata"), e);
+			createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
 			return false;
 		} catch (InterruptedException e) {
-			createMessages(Helper.getTranslation("InvalidMetadata"), e);
+			createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
 			return false;
 		} finally {
 			if (method != null) {
@@ -215,7 +215,7 @@ public class PdfDeliveryPlugin implements IStepPlugin, IPlugin {
 			FileUtils.deleteQuietly(pdfFile);
 			FileUtils.deleteQuietly(new File(metsfile));
 		} catch (IOException e) {
-			createMessages(Helper.getTranslation("IOError"), e);
+			createMessages(Helper.getTranslation("PluginErrorIOError"), e);
 			return false;
 		}
 
@@ -250,10 +250,10 @@ public class PdfDeliveryPlugin implements IStepPlugin, IPlugin {
 		try {
 			postMail(mail, "pdf download", downloadUrl);
 		} catch (UnsupportedEncodingException e) {
-			createMessages("MailError", e);
+			createMessages("PluginErrorMailError", e);
 			return false;
 		} catch (MessagingException e) {
-			createMessages("MailError", e);
+			createMessages("PluginErrorMailError", e);
 			return false;
 		}
 		
