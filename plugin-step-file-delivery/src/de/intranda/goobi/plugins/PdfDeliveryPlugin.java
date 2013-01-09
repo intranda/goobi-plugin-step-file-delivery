@@ -41,14 +41,14 @@ import ugh.exceptions.ReadException;
 import ugh.exceptions.TypeNotAllowedForParentException;
 import ugh.exceptions.WriteException;
 
-import de.sub.goobi.beans.Prozess;
-import de.sub.goobi.beans.Prozesseigenschaft;
-import de.sub.goobi.beans.Schritt;
-import de.sub.goobi.export.download.ExportMets;
-import de.sub.goobi.metadaten.MetadatenVerifizierungWithoutHibernate;
-import de.sub.goobi.persistence.ProzessDAO;
-import de.sub.goobi.persistence.apache.ProcessManager;
-import de.sub.goobi.persistence.apache.StepObject;
+import de.sub.goobi.Beans.Prozess;
+import de.sub.goobi.Beans.Prozesseigenschaft;
+import de.sub.goobi.Beans.Schritt;
+import de.sub.goobi.Export.download.ExportMets;
+import de.sub.goobi.Metadaten.MetadatenVerifizierungWithoutHibernate;
+import de.sub.goobi.Persistence.ProzessDAO;
+import de.sub.goobi.Persistence.apache.ProcessManager;
+import de.sub.goobi.Persistence.apache.StepObject;
 import de.sub.goobi.config.ConfigMain;
 import de.sub.goobi.config.ConfigPlugins;
 import de.sub.goobi.helper.Helper;
@@ -56,7 +56,7 @@ import de.sub.goobi.helper.exceptions.DAOException;
 import de.sub.goobi.helper.exceptions.ExportFileException;
 import de.sub.goobi.helper.exceptions.SwapException;
 import de.sub.goobi.helper.exceptions.UghHelperException;
-import dubious.sub.goobi.helper.encryption.MD5;
+import de.sub.goobi.helper.encryption.MD5;
 
 @PluginImplementation
 public class PdfDeliveryPlugin implements IStepPlugin, IPlugin {
@@ -246,7 +246,7 @@ public class PdfDeliveryPlugin implements IStepPlugin, IPlugin {
 		}
 
 		// - mail versenden
-		String[] mail = {"robert.sehr@intranda.com", "jan@intranda.com"};
+		String[] mail = { "robert.sehr@intranda.com", "jan@intranda.com" };
 		try {
 			postMail(mail, "pdf download", downloadUrl);
 		} catch (UnsupportedEncodingException e) {
@@ -256,7 +256,7 @@ public class PdfDeliveryPlugin implements IStepPlugin, IPlugin {
 			createMessages("PluginErrorMailError", e);
 			return false;
 		}
-		
+
 		return true;
 	}
 
@@ -370,4 +370,5 @@ public class PdfDeliveryPlugin implements IStepPlugin, IPlugin {
 		transport.sendMessage(msg, msg.getRecipients(Message.RecipientType.TO));
 		transport.close();
 	}
+
 }
