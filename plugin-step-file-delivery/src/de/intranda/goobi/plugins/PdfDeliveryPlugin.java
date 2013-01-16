@@ -245,8 +245,14 @@ public class PdfDeliveryPlugin implements IStepPlugin, IPlugin {
 			return false;
 		}
 
+		String mailAddress = "";
 		// - mail versenden
-		String[] mail = { "robert.sehr@intranda.com", "jan@intranda.com" };
+		for (Prozesseigenschaft pe : process.getEigenschaftenList()) {
+			if (pe.getTitel().equalsIgnoreCase("Email")) {
+				mailAddress = pe.getWert();
+			}
+		}
+		String[] mail = { mailAddress };
 		try {
 			postMail(mail, "pdf download", downloadUrl);
 		} catch (UnsupportedEncodingException e) {
