@@ -5,7 +5,7 @@
 	<!-- ================================= 
 	          properties             
 	 ================================= -->
-	<property name="jarfile" value="intrandaPdfDeliveryPlugins.jar" />
+	<property name="jarfile" value="intrandaFileDeliveryPlugin.jar" />
 	<property name="pluginFolderWin" value="C:/Goobi/plugins/step/" />
 	<property name="pluginFolderMac" value="/opt/digiverso/goobi/plugins/step/" />
 
