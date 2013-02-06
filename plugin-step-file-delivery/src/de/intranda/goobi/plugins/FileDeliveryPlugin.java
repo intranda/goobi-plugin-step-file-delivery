@@ -61,10 +61,10 @@ import de.sub.goobi.helper.exceptions.SwapException;
 import de.sub.goobi.helper.exceptions.UghHelperException;
 
 @PluginImplementation
-public class PdfDeliveryPlugin implements IStepPlugin, IPlugin {
-    private static final Logger logger = Logger.getLogger(PdfDeliveryPlugin.class);
+public class FileDeliveryPlugin implements IStepPlugin, IPlugin {
+    private static final Logger logger = Logger.getLogger(FileDeliveryPlugin.class);
 
-    private String pluginname = "PdfDelivery";
+    private String pluginname = "FileDelivery";
     // private Schritt step;
     private Prozess process;
     private String returnPath;
