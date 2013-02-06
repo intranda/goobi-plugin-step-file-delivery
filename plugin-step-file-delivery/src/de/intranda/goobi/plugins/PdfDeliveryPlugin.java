@@ -7,8 +7,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Properties;
 
 import javax.mail.Message;
@@ -40,7 +42,7 @@ import ugh.exceptions.PreferencesException;
 import ugh.exceptions.ReadException;
 import ugh.exceptions.TypeNotAllowedForParentException;
 import ugh.exceptions.WriteException;
-
+import de.schlichtherle.io.DefaultArchiveDetector;
 import de.sub.goobi.Beans.Prozess;
 import de.sub.goobi.Beans.Prozesseigenschaft;
 import de.sub.goobi.Beans.Schritt;
@@ -52,329 +54,386 @@ import de.sub.goobi.Persistence.apache.StepObject;
 import de.sub.goobi.config.ConfigMain;
 import de.sub.goobi.config.ConfigPlugins;
 import de.sub.goobi.helper.Helper;
+import de.sub.goobi.helper.encryption.MD5;
 import de.sub.goobi.helper.exceptions.DAOException;
 import de.sub.goobi.helper.exceptions.ExportFileException;
 import de.sub.goobi.helper.exceptions.SwapException;
 import de.sub.goobi.helper.exceptions.UghHelperException;
-import de.sub.goobi.helper.encryption.MD5;
 
 @PluginImplementation
 public class PdfDeliveryPlugin implements IStepPlugin, IPlugin {
-	private static final Logger logger = Logger.getLogger(PdfDeliveryPlugin.class);
+    private static final Logger logger = Logger.getLogger(PdfDeliveryPlugin.class);
 
-	private String pluginname = "PdfDelivery";
-	// private Schritt step;
-	private Prozess process;
-	private String returnPath;
+    private String pluginname = "PdfDelivery";
+    // private Schritt step;
+    private Prozess process;
+    private String returnPath;
 
-	private static final String PROPERTYTITLE = "PDFURL";
+    private static final String PROPERTYTITLE = "PDFURL";
 
-	// TODO generate value
-	private String internalServletPath = "http://localhost:8080/Goobi19";
+    // TODO generate value
+    private String internalServletPath = "http://localhost:8080/Goobi19";
 
-	@Override
-	public PluginType getType() {
-		return PluginType.Step;
-	}
+    @Override
+    public PluginType getType() {
+        return PluginType.Step;
+    }
 
-	@Override
-	public String getTitle() {
-		return pluginname;
-	}
+    @Override
+    public String getTitle() {
+        return pluginname;
+    }
 
-	@Override
-	public String getDescription() {
-		return pluginname;
-	}
+    @Override
+    public String getDescription() {
+        return pluginname;
+    }
 
-	@Override
-	public void initialize(Schritt step, String returnPath) {
-		// this.step = step;
-		this.process = step.getProzess();
-		this.returnPath = returnPath;
-	}
+    @Override
+    public void initialize(Schritt step, String returnPath) {
+        // this.step = step;
+        this.process = step.getProzess();
+        this.returnPath = returnPath;
+    }
 
-	@Override
-	public void initialize(StepObject stepobject, String returnPath) {
-		try {
-			// this.step = new SchrittDAO().get(stepobject.getId());
-			this.process = new ProzessDAO().get(stepobject.getProcessId());
-		} catch (DAOException e) {
+    @Override
+    public void initialize(StepObject stepobject, String returnPath) {
+        try {
+            // this.step = new SchrittDAO().get(stepobject.getId());
+            this.process = new ProzessDAO().get(stepobject.getProcessId());
+        } catch (DAOException e) {
 
-		}
-		this.returnPath = returnPath;
-	}
+        }
+        this.returnPath = returnPath;
+    }
 
-	@Override
-	public boolean execute() {
-		// - Metadaten validieren
+    @Override
+    public boolean execute() {
+        String mailAddress = "";
+        String format = "";
+        for (Prozesseigenschaft pe : process.getEigenschaftenList()) {
+            if (pe.getTitel().equalsIgnoreCase("email")) {
+                mailAddress = pe.getWert();
+            } else if (pe.getTitel().equalsIgnoreCase("format")) {
+                format = pe.getWert();
+            }
+        }
+        if ((mailAddress == null) || (mailAddress.length() == 0) || (format == null) || (format.length() == 0)) {
+            return false;
+        }
 
-		// TODO sicherstellen das filegroup PDF erzeugt und in im gcs für pdf eingestellt wurde
-		MetadatenVerifizierungWithoutHibernate mv = new MetadatenVerifizierungWithoutHibernate();
-		if (!mv.validate(process)) {
-			createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), null);
-			return false;
-		}
-		String tempfolder = ConfigMain.getParameter("tempfolder", "/opt/digiverso/goobi/temp/");
-		MD5 md5 = new MD5(process.getTitel());
-		// - umbenennen in unique Namen
-		File pdfFile = new File(tempfolder, System.currentTimeMillis() + md5.getMD5() + "_" + process.getTitel() + ".pdf");
-		String metsfile = tempfolder + process.getTitel() + "_mets.xml";
-		// - PDF erzeugen
-		GetMethod method = null;
-		try {
-			ExportMets em = new ExportMets();
+        File deliveryFile = null;
+        MD5 md5 = new MD5(process.getTitel());
+        if (format.equalsIgnoreCase("PDF")) {
 
-			em.startExport(process, tempfolder);
+            // TODO sicherstellen das filegroup PDF erzeugt und in im gcs für pdf eingestellt wurde
+            MetadatenVerifizierungWithoutHibernate mv = new MetadatenVerifizierungWithoutHibernate();
+            if (!mv.validate(process)) {
+                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), null);
+                return false;
+            }
+            String tempfolder = ConfigMain.getParameter("tempfolder", "/opt/digiverso/goobi/temp/");
 
-			URL goobiContentServerUrl = null;
-			String contentServerUrl = ConfigMain.getParameter("goobiContentServerUrl");
+            // - umbenennen in unique Namen
+            deliveryFile = new File(tempfolder, System.currentTimeMillis() + md5.getMD5() + "_" + process.getTitel() + ".pdf");
+            String metsfile = tempfolder + process.getTitel() + "_mets.xml";
+            // - PDF erzeugen
+            GetMethod method = null;
+            try {
+                ExportMets em = new ExportMets();
 
-			Integer contentServerTimeOut = ConfigMain.getIntParameter("goobiContentServerTimeOut", 60000);
-			if (contentServerUrl == null || contentServerUrl.length() == 0) {
-				contentServerUrl = this.internalServletPath + "/gcs/gcs?action=pdf&metsFile=file://";
-			}
-			goobiContentServerUrl = new URL(contentServerUrl + metsfile);
+                em.startExport(process, tempfolder);
 
-			HttpClient httpclient = new HttpClient();
-			logger.debug("Retrieving: " + goobiContentServerUrl.toString());
-			method = new GetMethod(goobiContentServerUrl.toString());
+                URL goobiContentServerUrl = null;
+                String contentServerUrl = ConfigMain.getParameter("goobiContentServerUrl");
 
-			method.getParams().setParameter("http.socket.timeout", contentServerTimeOut);
-			int statusCode = httpclient.executeMethod(method);
-			if (statusCode != HttpStatus.SC_OK) {
-				logger.error("HttpStatus nicht ok", null);
-				createMessages(Helper.getTranslation("PluginErrorPDFCreationError"), null);
-				return false;
-			}
+                Integer contentServerTimeOut = ConfigMain.getIntParameter("goobiContentServerTimeOut", 60000);
+                if ((contentServerUrl == null) || (contentServerUrl.length() == 0)) {
+                    contentServerUrl = this.internalServletPath + "/gcs/gcs?action=pdf&metsFile=file://";
+                }
+                goobiContentServerUrl = new URL(contentServerUrl + metsfile);
 
-			InputStream inStream = method.getResponseBodyAsStream();
-			BufferedInputStream bis = new BufferedInputStream(inStream);
-			FileOutputStream fos = new FileOutputStream(pdfFile);
-			byte[] bytes = new byte[8192];
-			int count = bis.read(bytes);
-			while (count != -1 && count <= 8192) {
-				fos.write(bytes, 0, count);
-				count = bis.read(bytes);
-			}
-			if (count != -1) {
-				fos.write(bytes, 0, count);
-			}
-			fos.close();
-			bis.close();
+                HttpClient httpclient = new HttpClient();
+                logger.debug("Retrieving: " + goobiContentServerUrl.toString());
+                method = new GetMethod(goobiContentServerUrl.toString());
 
-			// TODO individuelle Fehlermeldungen
-		} catch (PreferencesException e) {
-			createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-			return false;
-		} catch (WriteException e) {
-			createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-			return false;
-		} catch (DocStructHasNoTypeException e) {
-			createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-			return false;
-		} catch (MetadataTypeNotAllowedException e) {
-			createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-			return false;
-		} catch (ExportFileException e) {
-			createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-			return false;
-		} catch (UghHelperException e) {
-			createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-			return false;
-		} catch (ReadException e) {
-			createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-			return false;
-		} catch (SwapException e) {
-			createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-			return false;
-		} catch (DAOException e) {
-			createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-			return false;
-		} catch (TypeNotAllowedForParentException e) {
-			createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-			return false;
-		} catch (IOException e) {
-			createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-			return false;
-		} catch (InterruptedException e) {
-			createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-			return false;
-		} finally {
-			if (method != null) {
-				method.releaseConnection();
-			}
-		}
+                method.getParams().setParameter("http.socket.timeout", contentServerTimeOut);
+                int statusCode = httpclient.executeMethod(method);
+                if (statusCode != HttpStatus.SC_OK) {
+                    logger.error("HttpStatus nicht ok", null);
+                    createMessages(Helper.getTranslation("PluginErrorPDFCreationError"), null);
+                    return false;
+                }
 
-		// - an anderen Ort kopieren
-		String destination = ConfigPlugins.getPluginConfig(this).getString("destinationFolder", "/opt/digiverso/pdfexport/");
-		String donwloadServer = ConfigPlugins.getPluginConfig(this).getString("donwloadServer", "http://localhost:8080/Goobi19/");
-		String downloadUrl = donwloadServer + pdfFile.getName();
-		try {
-			FileUtils.copyFileToDirectory(pdfFile, new File(destination));
-			FileUtils.deleteQuietly(pdfFile);
-			FileUtils.deleteQuietly(new File(metsfile));
-		} catch (IOException e) {
-			createMessages(Helper.getTranslation("PluginErrorIOError"), e);
-			return false;
-		}
+                InputStream inStream = method.getResponseBodyAsStream();
+                BufferedInputStream bis = new BufferedInputStream(inStream);
+                FileOutputStream fos = new FileOutputStream(deliveryFile);
+                byte[] bytes = new byte[8192];
+                int count = bis.read(bytes);
+                while ((count != -1) && (count <= 8192)) {
+                    fos.write(bytes, 0, count);
+                    count = bis.read(bytes);
+                }
+                if (count != -1) {
+                    fos.write(bytes, 0, count);
+                }
+                fos.close();
+                bis.close();
+                FileUtils.deleteQuietly(new File(metsfile));
 
-		// - Name/Link als Property speichern
+            } catch (PreferencesException e) {
+                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
+                return false;
+            } catch (WriteException e) {
+                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
+                return false;
+            } catch (DocStructHasNoTypeException e) {
+                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
+                return false;
+            } catch (MetadataTypeNotAllowedException e) {
+                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
+                return false;
+            } catch (ExportFileException e) {
+                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
+                return false;
+            } catch (UghHelperException e) {
+                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
+                return false;
+            } catch (ReadException e) {
+                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
+                return false;
+            } catch (SwapException e) {
+                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
+                return false;
+            } catch (DAOException e) {
+                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
+                return false;
+            } catch (TypeNotAllowedForParentException e) {
+                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
+                return false;
+            } catch (IOException e) {
+                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
+                return false;
+            } catch (InterruptedException e) {
+                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
+                return false;
+            } finally {
+                if (method != null) {
+                    method.releaseConnection();
+                }
+            }
+        } else {
+            de.schlichtherle.io.File.setDefaultArchiveDetector(new DefaultArchiveDetector("tar.bz2|tar.gz|zip"));
+            de.schlichtherle.io.File zipFile =
+                    new de.schlichtherle.io.File(ConfigMain.getParameter("tempfolder") + System.currentTimeMillis() + md5.getMD5() + "_"
+                            + process.getTitel() + ".zip");
+            try {
+                String imagesFolderName = process.getImagesTifDirectory(false);
+                File imageFolder = new File(imagesFolderName);
+                if (!imageFolder.exists() || !imageFolder.isDirectory()) {
+                    return false;
+                }
+                java.io.File[] filenames = imageFolder.listFiles(Helper.dataFilter);
+                if ((filenames == null) || (filenames.length == 0)) {
+                    return false;
+                }
 
-		boolean matched = false;
-		for (Prozesseigenschaft pe : process.getEigenschaftenList()) {
-			if (pe.getTitel().equals(PROPERTYTITLE)) {
-				pe.setWert(downloadUrl);
-				matched = true;
-				break;
-			}
-		}
+                List<de.schlichtherle.io.File> images = new ArrayList<de.schlichtherle.io.File>();
+                for (java.io.File imagefile : filenames) {
+                    images.add(new de.schlichtherle.io.File(imagefile));
+                }
 
-		if (!matched) {
-			Prozesseigenschaft pe = new Prozesseigenschaft();
-			pe.setTitel(PROPERTYTITLE);
-			pe.setWert(downloadUrl);
-			process.getEigenschaften().add(pe);
-			pe.setProzess(process);
-		}
+                for (de.schlichtherle.io.File image : images) {
+                    image.copyTo(new File(zipFile, image.getName()));
+                }
 
-		try {
-			new ProzessDAO().save(process);
-		} catch (DAOException e) {
-			createMessages(Helper.getTranslation("fehlerNichtSpeicherbar"), e);
-			return false;
-		}
+                de.schlichtherle.io.File.umount();
 
-		String mailAddress = "";
-		// - mail versenden
-		for (Prozesseigenschaft pe : process.getEigenschaftenList()) {
-			if (pe.getTitel().equalsIgnoreCase("Email")) {
-				mailAddress = pe.getWert();
-			}
-		}
-		String[] mail = { mailAddress };
-		try {
-			postMail(mail, "pdf download", downloadUrl);
-		} catch (UnsupportedEncodingException e) {
-			createMessages("PluginErrorMailError", e);
-			return false;
-		} catch (MessagingException e) {
-			createMessages("PluginErrorMailError", e);
-			return false;
-		}
+                deliveryFile = new File(zipFile.getAbsolutePath(), zipFile.getName());
 
-		return true;
-	}
+            } catch (SwapException e) {
+                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
+                return false;
+            } catch (DAOException e) {
+                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
+                return false;
+            } catch (IOException e) {
+                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
+                return false;
+            } catch (InterruptedException e) {
+                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
+                return false;
+            }
 
-	@Override
-	public String cancel() {
-		return returnPath;
+        }
 
-	}
+        // - an anderen Ort kopieren
+        String destination = ConfigPlugins.getPluginConfig(this).getString("destinationFolder", "/opt/digiverso/pdfexport/");
+        String donwloadServer = ConfigPlugins.getPluginConfig(this).getString("donwloadServer", "http://localhost:8080/Goobi19/");
+        String downloadUrl = donwloadServer + deliveryFile.getName();
+        try {
+            FileUtils.copyFileToDirectory(deliveryFile, new File(destination));
+            FileUtils.deleteQuietly(deliveryFile);
+        } catch (IOException e) {
+            createMessages(Helper.getTranslation("PluginErrorIOError"), e);
+            return false;
+        }
 
-	@Override
-	public String finish() {
-		return returnPath;
+        // - Name/Link als Property speichern
 
-	}
+        boolean matched = false;
+        for (Prozesseigenschaft pe : process.getEigenschaftenList()) {
+            if (pe.getTitel().equals(PROPERTYTITLE)) {
+                pe.setWert(downloadUrl);
+                matched = true;
+                break;
+            }
+        }
 
-	@Override
-	public HashMap<String, StepReturnValue> validate() {
-		// TODO Auto-generated method stub
-		return null;
-	}
+        if (!matched) {
+            Prozesseigenschaft pe = new Prozesseigenschaft();
+            pe.setTitel(PROPERTYTITLE);
+            pe.setWert(downloadUrl);
+            process.getEigenschaften().add(pe);
+            pe.setProzess(process);
+        }
 
-	@Override
-	public Schritt getStep() {
-		// TODO
-		return null;
-	}
+        try {
+            new ProzessDAO().save(process);
+        } catch (DAOException e) {
+            createMessages(Helper.getTranslation("fehlerNichtSpeicherbar"), e);
+            return false;
+        }
 
-	@Override
-	public PluginGuiType getPluginGuiType() {
-		return PluginGuiType.NONE;
-	}
+        // - mail versenden
 
-	private void createMessages(String message, Exception e) {
-		if (e != null) {
-			Helper.setFehlerMeldung(message, e);
-			ProcessManager.addLogfile(WikiFieldHelper.getWikiMessage(process.getWikifield(), "error", message), process.getId());
-			logger.error(message, e);
-		} else {
-			Helper.setFehlerMeldung(message);
-			ProcessManager.addLogfile(WikiFieldHelper.getWikiMessage(process.getWikifield(), "error", message), process.getId());
-			logger.error(message);
-		}
+        String[] mail = { mailAddress };
+        try {
+            postMail(mail, "pdf download", downloadUrl);
+        } catch (UnsupportedEncodingException e) {
+            createMessages("PluginErrorMailError", e);
+            return false;
+        } catch (MessagingException e) {
+            createMessages("PluginErrorMailError", e);
+            return false;
+        }
 
-	}
+        return true;
+    }
 
-	public void postMail(String recipients[], String subject, String message) throws MessagingException, UnsupportedEncodingException {
-		boolean debug = false;
+    @Override
+    public String cancel() {
+        return returnPath;
 
-		String SMTP_SERVER = ConfigPlugins.getPluginConfig(this).getString("SMTP_SERVER", "mail.intranda.com");
-		String SMTP_USER = ConfigPlugins.getPluginConfig(this).getString("SMTP_USER", "TODO");
-		String SMTP_PASSWORD = ConfigPlugins.getPluginConfig(this).getString("SMTP_PASSWORD", "TODO");
-		String SMTP_USE_STARTTLS = ConfigPlugins.getPluginConfig(this).getString("SMTP_USE_STARTTLS", "0");
-		String SMTP_USE_SSL = ConfigPlugins.getPluginConfig(this).getString("SMTP_USE_SSL", "1");
-		String SENDER_ADDRESS = ConfigPlugins.getPluginConfig(this).getString("SENDER_ADDRESS", "TODO");
+    }
 
-		// Set the host smtp address
-		Properties props = new Properties();
-		if (SMTP_USE_STARTTLS != null && SMTP_USE_STARTTLS.equals("1")) {
-			props.setProperty("mail.transport.protocol", "smtp");
-			props.setProperty("mail.smtp.auth", "true");
-			props.setProperty("mail.smtp.port", "25");
-			props.setProperty("mail.smtp.host", SMTP_SERVER);
-			props.setProperty("mail.smtp.ssl.trust", "*");
-			props.setProperty("mail.smtp.starttls.enable", "true");
-			props.setProperty("mail.smtp.starttls.required", "true");
-		} else if (SMTP_USE_SSL != null && SMTP_USE_SSL.equals("1")) {
-			props.setProperty("mail.transport.protocol", "smtp");
-			props.setProperty("mail.smtp.host", SMTP_SERVER);
-			props.setProperty("mail.smtp.auth", "true");
-			props.setProperty("mail.smtp.port", "465");
-			props.setProperty("mail.smtp.ssl.enable", "true");
-			props.setProperty("mail.smtp.ssl.trust", "*");
+    @Override
+    public String finish() {
+        return returnPath;
 
-		} else {
-			props.setProperty("mail.transport.protocol", "smtp");
-			props.setProperty("mail.smtp.auth", "true");
-			props.setProperty("mail.smtp.port", "25");
-			props.setProperty("mail.smtp.host", SMTP_SERVER);
-		}
+    }
 
-		Session session = Session.getDefaultInstance(props, null);
-		session.setDebug(debug);
-		Message msg = new MimeMessage(session);
+    @Override
+    public HashMap<String, StepReturnValue> validate() {
+        // TODO Auto-generated method stub
+        return null;
+    }
 
-		InternetAddress addressFrom = new InternetAddress(SENDER_ADDRESS, "Robert Sehr");
-		msg.setFrom(addressFrom);
+    @Override
+    public Schritt getStep() {
+        // TODO
+        return null;
+    }
 
-		InternetAddress[] addressTo = new InternetAddress[recipients.length];
-		for (int i = 0; i < recipients.length; i++) {
-			addressTo[i] = new InternetAddress(recipients[i]);
-		}
-		msg.setRecipients(Message.RecipientType.TO, addressTo);
+    @Override
+    public PluginGuiType getPluginGuiType() {
+        return PluginGuiType.NONE;
+    }
 
-		// Optional : You can also set your custom headers in the Email if you
-		// Want
-		// msg.addHeader("MyHeaderName", "myHeaderValue");
+    private void createMessages(String message, Exception e) {
+        if (e != null) {
+            Helper.setFehlerMeldung(message, e);
+            ProcessManager.addLogfile(WikiFieldHelper.getWikiMessage(process.getWikifield(), "error", message), process.getId());
+            logger.error(message, e);
+        } else {
+            Helper.setFehlerMeldung(message);
+            ProcessManager.addLogfile(WikiFieldHelper.getWikiMessage(process.getWikifield(), "error", message), process.getId());
+            logger.error(message);
+        }
 
-		msg.setSubject(subject);
+    }
 
-		MimeBodyPart messagePart = new MimeBodyPart();
-		messagePart.setText(message, "utf-8");
-		messagePart.setHeader("Content-Type", "text/plain; charset=\"utf-8\"");
-		MimeMultipart multipart = new MimeMultipart();
-		multipart.addBodyPart(messagePart);
+    public void postMail(String recipients[], String subject, String downloadUrl) throws MessagingException, UnsupportedEncodingException {
+        boolean debug = false;
 
-		msg.setContent(multipart);
-		msg.setSentDate(new Date());
+        String SMTP_SERVER = ConfigPlugins.getPluginConfig(this).getString("SMTP_SERVER", "mail.intranda.com");
+        String SMTP_USER = ConfigPlugins.getPluginConfig(this).getString("SMTP_USER", "TODO");
+        String SMTP_PASSWORD = ConfigPlugins.getPluginConfig(this).getString("SMTP_PASSWORD", "TODO");
+        String SMTP_USE_STARTTLS = ConfigPlugins.getPluginConfig(this).getString("SMTP_USE_STARTTLS", "0");
+        String SMTP_USE_SSL = ConfigPlugins.getPluginConfig(this).getString("SMTP_USE_SSL", "1");
+        String SENDER_ADDRESS = ConfigPlugins.getPluginConfig(this).getString("SENDER_ADDRESS", "TODO");
+        
+        String MAIL_TEXT =  ConfigPlugins.getPluginConfig(this).getString("MAIL_TEXT", "{0}");
+        
+        MAIL_TEXT = MAIL_TEXT.replace("{0}", downloadUrl);
+        
+        // Set the host smtp address
+        Properties props = new Properties();
+        if ((SMTP_USE_STARTTLS != null) && SMTP_USE_STARTTLS.equals("1")) {
+            props.setProperty("mail.transport.protocol", "smtp");
+            props.setProperty("mail.smtp.auth", "true");
+            props.setProperty("mail.smtp.port", "25");
+            props.setProperty("mail.smtp.host", SMTP_SERVER);
+            props.setProperty("mail.smtp.ssl.trust", "*");
+            props.setProperty("mail.smtp.starttls.enable", "true");
+            props.setProperty("mail.smtp.starttls.required", "true");
+        } else if ((SMTP_USE_SSL != null) && SMTP_USE_SSL.equals("1")) {
+            props.setProperty("mail.transport.protocol", "smtp");
+            props.setProperty("mail.smtp.host", SMTP_SERVER);
+            props.setProperty("mail.smtp.auth", "true");
+            props.setProperty("mail.smtp.port", "465");
+            props.setProperty("mail.smtp.ssl.enable", "true");
+            props.setProperty("mail.smtp.ssl.trust", "*");
 
-		Transport transport = session.getTransport();
-		transport.connect(SMTP_USER, SMTP_PASSWORD);
-		transport.sendMessage(msg, msg.getRecipients(Message.RecipientType.TO));
-		transport.close();
-	}
+        } else {
+            props.setProperty("mail.transport.protocol", "smtp");
+            props.setProperty("mail.smtp.auth", "true");
+            props.setProperty("mail.smtp.port", "25");
+            props.setProperty("mail.smtp.host", SMTP_SERVER);
+        }
+
+        Session session = Session.getDefaultInstance(props, null);
+        session.setDebug(debug);
+        Message msg = new MimeMessage(session);
+
+        InternetAddress addressFrom = new InternetAddress(SENDER_ADDRESS, "Robert Sehr");
+        msg.setFrom(addressFrom);
+
+        InternetAddress[] addressTo = new InternetAddress[recipients.length];
+        for (int i = 0; i < recipients.length; i++) {
+            addressTo[i] = new InternetAddress(recipients[i]);
+        }
+        msg.setRecipients(Message.RecipientType.TO, addressTo);
+
+        // Optional : You can also set your custom headers in the Email if you
+        // Want
+        // msg.addHeader("MyHeaderName", "myHeaderValue");
+
+        msg.setSubject(subject);
+
+        MimeBodyPart messagePart = new MimeBodyPart();
+        messagePart.setText(MAIL_TEXT, "utf-8");
+        messagePart.setHeader("Content-Type", "text/plain; charset=\"utf-8\"");
+        MimeMultipart multipart = new MimeMultipart();
+        multipart.addBodyPart(messagePart);
+
+        msg.setContent(multipart);
+        msg.setSentDate(new Date());
+
+        Transport transport = session.getTransport();
+        transport.connect(SMTP_USER, SMTP_PASSWORD);
+        transport.sendMessage(msg, msg.getRecipients(Message.RecipientType.TO));
+        transport.close();
+    }
 
 }
