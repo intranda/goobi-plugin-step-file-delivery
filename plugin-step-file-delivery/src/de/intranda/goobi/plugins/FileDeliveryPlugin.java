@@ -71,9 +71,6 @@ public class FileDeliveryPlugin implements IStepPlugin, IPlugin {
 
     private static final String PROPERTYTITLE = "PDFURL";
 
-    // TODO generate value
-    private String internalServletPath = "http://localhost:8080/Goobi19";
-
     @Override
     public PluginType getType() {
         return PluginType.Step;
@@ -149,7 +146,8 @@ public class FileDeliveryPlugin implements IStepPlugin, IPlugin {
 
                 Integer contentServerTimeOut = ConfigMain.getIntParameter("goobiContentServerTimeOut", 60000);
                 if ((contentServerUrl == null) || (contentServerUrl.length() == 0)) {
-                    contentServerUrl = this.internalServletPath + "/gcs/gcs?action=pdf&metsFile=file://";
+                    contentServerUrl = ConfigPlugins.getPluginConfig(this).getString("contentServerUrl");
+                    ;
                 }
                 goobiContentServerUrl = new URL(contentServerUrl + metsfile);
 
@@ -269,7 +267,7 @@ public class FileDeliveryPlugin implements IStepPlugin, IPlugin {
 
         // - an anderen Ort kopieren
         String destination = ConfigPlugins.getPluginConfig(this).getString("destinationFolder", "/opt/digiverso/pdfexport/");
-        String donwloadServer = ConfigPlugins.getPluginConfig(this).getString("donwloadServer", "http://localhost:8080/Goobi19/");
+        String donwloadServer = ConfigPlugins.getPluginConfig(this).getString("donwloadServer", "http://leiden01.intranda.com/goobi/");
         String downloadUrl = donwloadServer + deliveryFile.getName();
         try {
             FileUtils.copyFileToDirectory(deliveryFile, new File(destination));
@@ -309,7 +307,7 @@ public class FileDeliveryPlugin implements IStepPlugin, IPlugin {
 
         String[] mail = { mailAddress };
         try {
-            postMail(mail, "pdf download", downloadUrl);
+            postMail(mail, downloadUrl);
         } catch (UnsupportedEncodingException e) {
             createMessages("PluginErrorMailError", e);
             return false;
@@ -363,7 +361,7 @@ public class FileDeliveryPlugin implements IStepPlugin, IPlugin {
 
     }
 
-    public void postMail(String recipients[], String subject, String downloadUrl) throws MessagingException, UnsupportedEncodingException {
+    public void postMail(String recipients[], String downloadUrl) throws MessagingException, UnsupportedEncodingException {
         boolean debug = false;
 
         String SMTP_SERVER = ConfigPlugins.getPluginConfig(this).getString("SMTP_SERVER", "mail.intranda.com");
@@ -372,11 +370,13 @@ public class FileDeliveryPlugin implements IStepPlugin, IPlugin {
         String SMTP_USE_STARTTLS = ConfigPlugins.getPluginConfig(this).getString("SMTP_USE_STARTTLS", "0");
         String SMTP_USE_SSL = ConfigPlugins.getPluginConfig(this).getString("SMTP_USE_SSL", "1");
         String SENDER_ADDRESS = ConfigPlugins.getPluginConfig(this).getString("SENDER_ADDRESS", "TODO");
-        
-        String MAIL_TEXT =  ConfigPlugins.getPluginConfig(this).getString("MAIL_TEXT", "{0}");
-        
+
+        String MAIL_SUBJECT =
+                ConfigPlugins.getPluginConfig(this).getString("MAIL_SUBJECT",
+                        "Leiden University – Digitisation Order Special Collections University Library");
+        String MAIL_TEXT = ConfigPlugins.getPluginConfig(this).getString("MAIL_BODY", "{0}");
         MAIL_TEXT = MAIL_TEXT.replace("{0}", downloadUrl);
-        
+
         // Set the host smtp address
         Properties props = new Properties();
         if ((SMTP_USE_STARTTLS != null) && SMTP_USE_STARTTLS.equals("1")) {
@@ -419,7 +419,7 @@ public class FileDeliveryPlugin implements IStepPlugin, IPlugin {
         // Want
         // msg.addHeader("MyHeaderName", "myHeaderValue");
 
-        msg.setSubject(subject);
+        msg.setSubject(MAIL_SUBJECT);
 
         MimeBodyPart messagePart = new MimeBodyPart();
         messagePart.setText(MAIL_TEXT, "utf-8");
