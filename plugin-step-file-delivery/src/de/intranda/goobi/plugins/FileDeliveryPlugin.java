@@ -142,12 +142,11 @@ public class FileDeliveryPlugin implements IStepPlugin, IPlugin {
                 em.startExport(process, tempfolder);
 
                 URL goobiContentServerUrl = null;
-                String contentServerUrl = ConfigMain.getParameter("goobiContentServerUrl");
-
+//                String contentServerUrl = ConfigMain.getParameter("goobiContentServerUrl");
+                String contentServerUrl = "http://localhost:8080/goobi/gcs/cs?action=pdf&metsFile=file://";
                 Integer contentServerTimeOut = ConfigMain.getIntParameter("goobiContentServerTimeOut", 60000);
                 if ((contentServerUrl == null) || (contentServerUrl.length() == 0)) {
                     contentServerUrl = ConfigPlugins.getPluginConfig(this).getString("contentServerUrl");
-                    ;
                 }
                 goobiContentServerUrl = new URL(contentServerUrl + metsfile);
 
