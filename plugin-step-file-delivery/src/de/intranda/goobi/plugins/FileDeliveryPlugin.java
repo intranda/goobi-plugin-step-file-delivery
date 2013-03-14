@@ -398,7 +398,7 @@ public class FileDeliveryPlugin implements IStepPlugin, IPlugin {
         session.setDebug(debug);
         Message msg = new MimeMessage(session);
 
-        InternetAddress addressFrom = new InternetAddress(SENDER_ADDRESS, "Robert Sehr");
+        InternetAddress addressFrom = new InternetAddress(SENDER_ADDRESS);
         msg.setFrom(addressFrom);
 
         InternetAddress[] addressTo = new InternetAddress[recipients.length];
