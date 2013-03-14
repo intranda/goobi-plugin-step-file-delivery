@@ -36,12 +36,14 @@ import org.goobi.production.enums.StepReturnValue;
 import org.goobi.production.plugin.interfaces.IPlugin;
 import org.goobi.production.plugin.interfaces.IStepPlugin;
 
+import ugh.dl.Fileformat;
 import ugh.exceptions.DocStructHasNoTypeException;
 import ugh.exceptions.MetadataTypeNotAllowedException;
 import ugh.exceptions.PreferencesException;
 import ugh.exceptions.ReadException;
 import ugh.exceptions.TypeNotAllowedForParentException;
 import ugh.exceptions.WriteException;
+import de.intranda.goobi.plugins.utils.MetsCreation;
 import de.schlichtherle.io.DefaultArchiveDetector;
 import de.sub.goobi.Beans.Prozess;
 import de.sub.goobi.Beans.Prozesseigenschaft;
@@ -137,10 +139,10 @@ public class FileDeliveryPlugin implements IStepPlugin, IPlugin {
             // - PDF erzeugen
             GetMethod method = null;
             try {
-                ExportMets em = new ExportMets();
+                MetsCreation em = new MetsCreation();
+                Fileformat gdzfile = process.readMetadataFile();
 
-                em.startExport(process, tempfolder);
-
+                em.writeMetsFile(process, metsfile, gdzfile, true);
                 URL goobiContentServerUrl = null;
 //                String contentServerUrl = ConfigMain.getParameter("goobiContentServerUrl");
                 String contentServerUrl = "http://localhost:8080/goobi/gcs/cs?action=pdf&metsFile=file://";
@@ -185,15 +187,6 @@ public class FileDeliveryPlugin implements IStepPlugin, IPlugin {
                 createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
                 return false;
             } catch (DocStructHasNoTypeException e) {
-                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-                return false;
-            } catch (MetadataTypeNotAllowedException e) {
-                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-                return false;
-            } catch (ExportFileException e) {
-                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-                return false;
-            } catch (UghHelperException e) {
                 createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
                 return false;
             } catch (ReadException e) {
