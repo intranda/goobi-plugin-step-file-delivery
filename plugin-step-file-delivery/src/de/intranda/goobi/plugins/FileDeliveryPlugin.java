@@ -218,28 +218,30 @@ public class FileDeliveryPlugin implements IStepPlugin, IPlugin {
                     new de.schlichtherle.io.File(ConfigMain.getParameter("tempfolder") + System.currentTimeMillis() + md5.getMD5() + "_"
                             + process.getTitel() + ".zip");
             try {
+               
                 String imagesFolderName = process.getImagesTifDirectory(false);
-                File imageFolder = new File(imagesFolderName);
+                de.schlichtherle.io.File imageFolder = new de.schlichtherle.io.File(imagesFolderName);
                 if (!imageFolder.exists() || !imageFolder.isDirectory()) {
                     return false;
                 }
-                java.io.File[] filenames = imageFolder.listFiles(Helper.dataFilter);
+                String[] filenames = imageFolder.list(Helper.dataFilter);
                 if ((filenames == null) || (filenames.length == 0)) {
                     return false;
                 }
 
                 List<de.schlichtherle.io.File> images = new ArrayList<de.schlichtherle.io.File>();
-                for (java.io.File imagefile : filenames) {
+                for (String imagefileName : filenames) {
+                    de.schlichtherle.io.File imagefile = new de.schlichtherle.io.File(imageFolder, imagefileName);
                     images.add(new de.schlichtherle.io.File(imagefile));
                 }
 
                 for (de.schlichtherle.io.File image : images) {
-                    image.copyTo(new File(zipFile, image.getName()));
+                    image.copyTo(new de.schlichtherle.io.File(zipFile + java.io.File.separator + image.getName()));
                 }
-
+                zipFile.createNewFile();
                 de.schlichtherle.io.File.umount();
 
-                deliveryFile = new File(zipFile.getAbsolutePath(), zipFile.getName());
+                deliveryFile = new File(zipFile.getAbsolutePath());
 
             } catch (SwapException e) {
                 createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
