@@ -3,11 +3,13 @@ package de.intranda.goobi.plugins;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -36,19 +38,11 @@ import org.goobi.production.enums.StepReturnValue;
 import org.goobi.production.plugin.interfaces.IPlugin;
 import org.goobi.production.plugin.interfaces.IStepPlugin;
 
-import ugh.dl.Fileformat;
 import ugh.exceptions.DocStructHasNoTypeException;
-import ugh.exceptions.MetadataTypeNotAllowedException;
-import ugh.exceptions.PreferencesException;
-import ugh.exceptions.ReadException;
-import ugh.exceptions.TypeNotAllowedForParentException;
-import ugh.exceptions.WriteException;
-import de.intranda.goobi.plugins.utils.MetsCreation;
 import de.schlichtherle.io.DefaultArchiveDetector;
 import de.sub.goobi.Beans.Prozess;
 import de.sub.goobi.Beans.Prozesseigenschaft;
 import de.sub.goobi.Beans.Schritt;
-import de.sub.goobi.Export.download.ExportMets;
 import de.sub.goobi.Metadaten.MetadatenVerifizierungWithoutHibernate;
 import de.sub.goobi.Persistence.ProzessDAO;
 import de.sub.goobi.Persistence.apache.ProcessManager;
@@ -58,9 +52,7 @@ import de.sub.goobi.config.ConfigPlugins;
 import de.sub.goobi.helper.Helper;
 import de.sub.goobi.helper.encryption.MD5;
 import de.sub.goobi.helper.exceptions.DAOException;
-import de.sub.goobi.helper.exceptions.ExportFileException;
 import de.sub.goobi.helper.exceptions.SwapException;
-import de.sub.goobi.helper.exceptions.UghHelperException;
 
 @PluginImplementation
 public class FileDeliveryPlugin implements IStepPlugin, IPlugin {
@@ -139,18 +131,30 @@ public class FileDeliveryPlugin implements IStepPlugin, IPlugin {
             // - PDF erzeugen
             GetMethod method = null;
             try {
-                MetsCreation em = new MetsCreation();
-                Fileformat gdzfile = process.readMetadataFile();
-
-                em.writeMetsFile(process, metsfile, gdzfile, true);
                 URL goobiContentServerUrl = null;
-//                String contentServerUrl = ConfigMain.getParameter("goobiContentServerUrl");
-                String contentServerUrl = "http://localhost:8080/goobi/gcs/cs?action=pdf&metsFile=file://";
-                Integer contentServerTimeOut = ConfigMain.getIntParameter("goobiContentServerTimeOut", 60000);
-                if ((contentServerUrl == null) || (contentServerUrl.length() == 0)) {
-                    contentServerUrl = ConfigPlugins.getPluginConfig(this).getString("contentServerUrl");
+                String contentServerUrl = ConfigPlugins.getPluginConfig(this).getString("contentServerUrl");
+
+                if (contentServerUrl == null || contentServerUrl.length() == 0) {
+                    contentServerUrl = "http://localhost:8080/goobi" + "/cs/cs?action=pdf&images=";
                 }
-                goobiContentServerUrl = new URL(contentServerUrl + metsfile);
+                String url = "";
+                //                FilenameFilter filter = tiffilter;
+                File imagesDir = new File(process.getImagesTifDirectory(true));
+                File[] meta = imagesDir.listFiles(tiffilter);
+                ArrayList<String> filenames = new ArrayList<String>();
+                for (File data : meta) {
+                    String file = "";
+                    file += data.toURI().toURL();
+                    filenames.add(file);
+                }
+                Collections.sort(filenames);
+                for (String f : filenames) {
+                    url = url + f + "$";
+                }
+                String imageString = url.substring(0, url.length() - 1);
+                String targetFileName = "&targetFileName=" + process.getTitel() + ".pdf";
+                goobiContentServerUrl = new URL(contentServerUrl + imageString + targetFileName);
+                Integer contentServerTimeOut = ConfigMain.getIntParameter("goobiContentServerTimeOut", 60000);
 
                 HttpClient httpclient = new HttpClient();
                 logger.debug("Retrieving: " + goobiContentServerUrl.toString());
@@ -180,25 +184,13 @@ public class FileDeliveryPlugin implements IStepPlugin, IPlugin {
                 bis.close();
                 FileUtils.deleteQuietly(new File(metsfile));
 
-            } catch (PreferencesException e) {
-                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-                return false;
-            } catch (WriteException e) {
-                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-                return false;
             } catch (DocStructHasNoTypeException e) {
-                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-                return false;
-            } catch (ReadException e) {
                 createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
                 return false;
             } catch (SwapException e) {
                 createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
                 return false;
             } catch (DAOException e) {
-                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-                return false;
-            } catch (TypeNotAllowedForParentException e) {
                 createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
                 return false;
             } catch (IOException e) {
@@ -218,7 +210,7 @@ public class FileDeliveryPlugin implements IStepPlugin, IPlugin {
                     new de.schlichtherle.io.File(ConfigMain.getParameter("tempfolder") + System.currentTimeMillis() + md5.getMD5() + "_"
                             + process.getTitel() + ".zip");
             try {
-               
+
                 String imagesFolderName = process.getImagesTifDirectory(false);
                 de.schlichtherle.io.File imageFolder = new de.schlichtherle.io.File(imagesFolderName);
                 if (!imageFolder.exists() || !imageFolder.isDirectory()) {
@@ -429,5 +421,13 @@ public class FileDeliveryPlugin implements IStepPlugin, IPlugin {
         transport.sendMessage(msg, msg.getRecipients(Message.RecipientType.TO));
         transport.close();
     }
+
+    private static FilenameFilter tiffilter = new FilenameFilter() {
+
+        @Override
+        public boolean accept(File dir, String name) {
+            return name.endsWith(".tif") || name.endsWith(".TIF");
+        }
+    };
 
 }
