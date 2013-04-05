@@ -55,10 +55,10 @@ import de.sub.goobi.helper.exceptions.DAOException;
 import de.sub.goobi.helper.exceptions.SwapException;
 
 @PluginImplementation
-public class FileDeliveryPlugin implements IStepPlugin, IPlugin {
-    private static final Logger logger = Logger.getLogger(FileDeliveryPlugin.class);
+public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
+    private static final Logger logger = Logger.getLogger(FileDeliveryWithMetsPlugin.class);
 
-    private String pluginname = "FileDelivery";
+    private String pluginname = "FileDeliveryWithMets";
     // private Schritt step;
     private Prozess process;
     private String returnPath;
