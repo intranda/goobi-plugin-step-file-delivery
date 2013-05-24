@@ -84,8 +84,9 @@
 			<classpath refid="classpath" />
 			<compilerarg value="-Xlint" />
 			<src path="src" />
-			<src path="../Goobi/src" />
-			<src path="../Goobi/src-dubious" />
+			<src path="../Goobi/WEB-INF/src" />
+<!--		<src path="../Goobi/src" />
+			<src path="../Goobi/src-dubious" />			-->
 		</javac>
 	</target>
 
