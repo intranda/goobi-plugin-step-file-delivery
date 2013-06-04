@@ -125,16 +125,16 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
         if (format.equalsIgnoreCase("PDF")) {
 
             // TODO sicherstellen das filegroup PDF erzeugt und in im gcs für pdf eingestellt wurde
-            MetadatenVerifizierungWithoutHibernate mv = new MetadatenVerifizierungWithoutHibernate();
-            if (!mv.validate(process)) {
-                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), null);
-                return false;
-            }
+//            MetadatenVerifizierungWithoutHibernate mv = new MetadatenVerifizierungWithoutHibernate();
+//            if (!mv.validate(process)) {
+//                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), null);
+//                return false;
+//            }
             String tempfolder = ConfigMain.getParameter("tempfolder", "/opt/digiverso/goobi/temp/");
 
             // - umbenennen in unique Namen
             deliveryFile = new File(tempfolder, System.currentTimeMillis() + md5.getMD5() + "_" + process.getTitel() + ".pdf");
-            String metsfile = tempfolder + process.getTitel() + "_mets.xml";
+//            String metsfile = tempfolder + process.getTitel() + "_mets.xml";
             // - PDF erzeugen
             GetMethod method = null;
             try {
@@ -189,7 +189,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
                 }
                 fos.close();
                 bis.close();
-                FileUtils.deleteQuietly(new File(metsfile));
+//                FileUtils.deleteQuietly(new File(metsfile));
 
             } catch (DocStructHasNoTypeException e) {
                 createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
