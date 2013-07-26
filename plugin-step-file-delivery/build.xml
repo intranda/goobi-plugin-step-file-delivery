@@ -84,7 +84,7 @@
 			<classpath refid="classpath" />
 			<compilerarg value="-Xlint" />
 			<src path="src" />
-			<src path="../Goobi/WEB-INF/src" />
+			<!--			<src path="../Goobi/WEB-INF/src" /> -->
 <!--		<src path="../Goobi/src" />
 			<src path="../Goobi/src-dubious" />			-->
 		</javac>
@@ -103,24 +103,9 @@
          Include the libraries
 	     ================================= -->
 
-	<target name="libs-jenkins" if="jenkins">
-		<pathconvert property="libs.project" pathsep=" ">
-			<mapper>
-				<chainedmapper>
-					<flattenmapper />
-					<globmapper from="*" to="lib/*" />
-				</chainedmapper>
-			</mapper>
 
-			<path>
-				<fileset dir="../Goobi/WEB-INF/lib">
-					<include name="**/*.jar" />
-				</fileset>
-			</path>
-		</pathconvert>
-	</target>
 
-	<target name="libs-eclipse" unless="jenkins">
+	<target name="libs">
 		<pathconvert property="libs.project" pathsep=" ">
 			<mapper>
 				<chainedmapper>
@@ -185,8 +170,7 @@
 			</path>
 		</pathconvert>
 
-		<antcall target="libs-jenkins" />
-		<antcall target="libs-eclipse" />
+		<antcall target="libs" />
 		<echo file="${dir.build}/de/intranda/goobi/plugins.txt">${plugins.project}  -----------------------------------------------------  Git-revision: ${git.revision}</echo>
 
 		<echo>Generating jar file: ${dir.deploy}/${filename}-${git.revision}.jar</echo>

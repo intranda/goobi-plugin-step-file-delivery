@@ -144,7 +144,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
                     String contentServerUrl = ConfigPlugins.getPluginConfig(this).getString("contentServerUrl");
 
                     if (contentServerUrl == null || contentServerUrl.length() == 0) {
-                        contentServerUrl = "http://localhost:8080/goobi" + "/cs/cs?action=pdf&images=";
+                        contentServerUrl = "http://localhost:8080/goobi" + "/cs/cs?action=pdf&resolution=150&convertToGrayscale&images=";
                     }
                     String url = "";
                     //                FilenameFilter filter = tiffilter;
