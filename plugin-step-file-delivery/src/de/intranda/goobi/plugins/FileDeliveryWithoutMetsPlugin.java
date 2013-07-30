@@ -217,10 +217,10 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
                 createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
                 return false;
             } catch (IOException e) {
-                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
+                createMessages(Helper.getTranslation("PluginErrorIOError"), e);
                 return false;
             } catch (InterruptedException e) {
-                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
+                createMessages(Helper.getTranslation("PluginErrorIOError"), e);
                 return false;
             }
         }
@@ -255,7 +255,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
             deliveryFile = new File(zipFile.getAbsolutePath());
 
         } catch (IOException e) {
-            createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
+            createMessages(Helper.getTranslation("PluginErrorIOError"), e);
             return false;
         }
 
