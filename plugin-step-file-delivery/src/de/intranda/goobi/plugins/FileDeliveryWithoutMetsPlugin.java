@@ -225,10 +225,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
             }
         }
 
-        de.schlichtherle.io.File.setDefaultArchiveDetector(new DefaultArchiveDetector("tar.bz2|tar.gz|zip"));
-        de.schlichtherle.io.File zipFile =
-                new de.schlichtherle.io.File(ConfigMain.getParameter("tempfolder") + System.currentTimeMillis() + md5.getMD5() + "_"
-                        + process.getTitel() + ".zip");
+        
         try {
 
             de.schlichtherle.io.File imageFolder = new de.schlichtherle.io.File(imagesFolderName);
@@ -239,7 +236,10 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
             if ((filenames == null) || (filenames.length == 0)) {
                 return false;
             }
-
+            de.schlichtherle.io.File.setDefaultArchiveDetector(new DefaultArchiveDetector("tar.bz2|tar.gz|zip"));
+            de.schlichtherle.io.File zipFile =
+                    new de.schlichtherle.io.File(ConfigMain.getParameter("tempfolder") + System.currentTimeMillis() + md5.getMD5() + "_"
+                            + process.getTitel() + ".zip");
             List<de.schlichtherle.io.File> images = new ArrayList<de.schlichtherle.io.File>();
             for (String imagefileName : filenames) {
                 de.schlichtherle.io.File imagefile = new de.schlichtherle.io.File(imageFolder, imagefileName);
@@ -254,7 +254,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
 
             deliveryFile = new File(zipFile.getAbsolutePath());
 
-        } catch (IOException e) {
+        } catch (Exception e) {
             createMessages(Helper.getTranslation("PluginErrorIOError"), e);
             return false;
         }
@@ -400,7 +400,6 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
 
         InternetAddress addressFrom = new InternetAddress(SENDER_ADDRESS);
         msg.setFrom(addressFrom);
-
         InternetAddress[] addressTo = new InternetAddress[recipients.length];
         for (int i = 0; i < recipients.length; i++) {
             addressTo[i] = new InternetAddress(recipients[i]);
