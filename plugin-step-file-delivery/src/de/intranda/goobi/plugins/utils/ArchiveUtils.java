@@ -584,17 +584,18 @@ public class ArchiveUtils {
         }
     }
 
-    public static boolean validateZip(File zipFile, boolean createTempFile, File origFilesParent) {
+    public static boolean validateZip(File zipFile, boolean createTempFile, File origFilesParent, int supposedFiles) {
 
         File tempFile = null;
         ZipEntry entry = null;
         ZipInputStream in = null;
+        int counter = 0;
         try {
             in = new ZipInputStream((new BufferedInputStream(new FileInputStream(zipFile))));
 
-            //          in = new TarArchiveInputStream((new BufferedInputStream(new FileInputStream(tarFile))));
-            //            TarArchiveEntry entry;
+
             while ((entry = in.getNextEntry()) != null) {
+                counter++;
                 File f = new File(entry.getName());
                 tempFile = new File(zipFile.getParentFile(), f.getName());
                 if (entry.isDirectory()) {
@@ -660,14 +661,17 @@ public class ArchiveUtils {
             try {
                 if (in != null)
                     in.close();
-
             } catch (IOException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+                logger.debug("Cannot close archive entry");
+                return false;
             }
         }
 
-        return true;
+        if (counter == supposedFiles) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     /**

@@ -260,7 +260,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
             return false;
         }
 
-        if (ArchiveUtils.validateZip(compressedFile, true, imageFolder)) {
+        if (ArchiveUtils.validateZip(compressedFile, true, imageFolder, filenames.length)) {
             logger.info("Zip archive for " + process.getTitel() + " is valid");
         } else {
             logger.error("Zip archive for " + process.getTitel() + " is curropted. Aborting.");
