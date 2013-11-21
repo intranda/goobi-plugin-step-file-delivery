@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -38,7 +40,7 @@ import org.goobi.production.enums.StepReturnValue;
 import org.goobi.production.plugin.interfaces.IPlugin;
 import org.goobi.production.plugin.interfaces.IStepPlugin;
 
-import de.schlichtherle.io.DefaultArchiveDetector;
+import de.intranda.goobi.plugins.utils.ArchiveUtils;
 import de.sub.goobi.Beans.Prozess;
 import de.sub.goobi.Beans.Prozesseigenschaft;
 import de.sub.goobi.Beans.Schritt;
@@ -225,51 +227,110 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
             }
         }
 
-        
-        try {
+        File compressedFile =
+                new File(ConfigMain.getParameter("tempfolder") + System.currentTimeMillis() + md5.getMD5() + "_" + process.getTitel() + ".zip");
 
-            de.schlichtherle.io.File imageFolder = new de.schlichtherle.io.File(imagesFolderName);
-            if (!imageFolder.exists() || !imageFolder.isDirectory()) {
-                return false;
-            }
-            String[] filenames = imageFolder.list(Helper.dataFilter);
-            if ((filenames == null) || (filenames.length == 0)) {
-                return false;
-            }
-            de.schlichtherle.io.File.setDefaultArchiveDetector(new DefaultArchiveDetector("tar.bz2|tar.gz|zip"));
-            de.schlichtherle.io.File zipFile =
-                    new de.schlichtherle.io.File(ConfigMain.getParameter("tempfolder") + System.currentTimeMillis() + md5.getMD5() + "_"
-                            + process.getTitel() + ".zip");
-            List<de.schlichtherle.io.File> images = new ArrayList<de.schlichtherle.io.File>();
-            for (String imagefileName : filenames) {
-                de.schlichtherle.io.File imagefile = new de.schlichtherle.io.File(imageFolder, imagefileName);
-                images.add(new de.schlichtherle.io.File(imagefile));
-            }
-
-            for (de.schlichtherle.io.File image : images) {
-                image.copyTo(new de.schlichtherle.io.File(zipFile + java.io.File.separator + image.getName()));
-            }
-            zipFile.createNewFile();
-            de.schlichtherle.io.File.umount();
-
-            deliveryFile = new File(zipFile.getAbsolutePath());
-
-        } catch (Exception e) {
-            createMessages(Helper.getTranslation("PluginErrorIOError"), e);
+        File imageFolder = new File(imagesFolderName);
+        File[] filenames = imageFolder.listFiles(Helper.dataFilter);
+        if ((filenames == null) || (filenames.length == 0)) {
             return false;
         }
+        File destFile =
+                new File(ConfigPlugins.getPluginConfig(this).getString("destinationFolder", "/opt/digiverso/pdfexport/"), compressedFile.getName());
 
-        // - an anderen Ort kopieren
-        String destination = ConfigPlugins.getPluginConfig(this).getString("destinationFolder", "/opt/digiverso/pdfexport/");
-        String donwloadServer = ConfigPlugins.getPluginConfig(this).getString("donwloadServer", "http://leiden01.intranda.com/goobi/");
-        String downloadUrl = donwloadServer + deliveryFile.getName();
+        logger.debug("Found " + filenames.length + " files.");
+
+        byte[] origArchiveChecksum = null;
         try {
-            FileUtils.copyFileToDirectory(deliveryFile, new File(destination));
-            FileUtils.deleteQuietly(deliveryFile);
+            origArchiveChecksum = ArchiveUtils.zipFiles(filenames, compressedFile);
         } catch (IOException e) {
-            createMessages(Helper.getTranslation("PluginErrorIOError"), e);
+            logger.error("Failed to zip files to archive for " + process.getTitel() + ". Aborting.");
             return false;
         }
+
+        logger.info("Validating zip-archive");
+        byte[] origArchiveAfterZipChecksum = null;
+        try {
+            origArchiveAfterZipChecksum = ArchiveUtils.createChecksum(compressedFile);
+        } catch (NoSuchAlgorithmException e) {
+            logger.error("Failed to validate zip archive: " + e.toString() + ". Aborting.");
+            return false;
+        } catch (IOException e) {
+            logger.error("Failed to validate zip archive: " + e.toString() + ". Aborting.");
+            return false;
+        }
+
+        if (ArchiveUtils.validateZip(compressedFile, true, imageFolder)) {
+            logger.info("Zip archive for " + process.getTitel() + " is valid");
+        } else {
+            logger.error("Zip archive for " + process.getTitel() + " is curropted. Aborting.");
+            return false;
+        }
+        // ////////Done validating archive
+
+        // ////////copying archive file and validating copy
+        logger.info("Copying zip archive for " + process.getTitel() + " to archive");
+        try {
+            ArchiveUtils.copyFile(compressedFile, destFile);
+            // validation
+            if (!MessageDigest.isEqual(origArchiveAfterZipChecksum, ArchiveUtils.createChecksum(destFile))) {
+                logger.error("Error copying archive file to archive: Copy is not valid. Aborting.");
+                return false;
+            }
+        } catch (IOException e) {
+            logger.error("Error validating copied archive. Aborting.");
+            return false;
+        } catch (NoSuchAlgorithmException e) {
+            logger.error("Error validating copied archive. Aborting.");
+            return false;
+        }
+        logger.info("Zip archive copied to " + destFile.getAbsolutePath() + " and found to be valid.");
+        // ////////done copying and validating archive
+
+        //        try {
+        //
+        //            de.schlichtherle.io.File imageFolder = new de.schlichtherle.io.File(imagesFolderName);
+        //            if (!imageFolder.exists() || !imageFolder.isDirectory()) {
+        //                return false;
+        //            }
+        //            String[] filenames = imageFolder.list(Helper.dataFilter);
+        //            if ((filenames == null) || (filenames.length == 0)) {
+        //                return false;
+        //            }
+        //            de.schlichtherle.io.File.setDefaultArchiveDetector(new DefaultArchiveDetector("tar.bz2|tar.gz|zip"));
+        //            de.schlichtherle.io.File zipFile =
+        //                    new de.schlichtherle.io.File(ConfigMain.getParameter("tempfolder") + System.currentTimeMillis() + md5.getMD5() + "_"
+        //                            + process.getTitel() + ".zip");
+        //            List<de.schlichtherle.io.File> images = new ArrayList<de.schlichtherle.io.File>();
+        //            for (String imagefileName : filenames) {
+        //                de.schlichtherle.io.File imagefile = new de.schlichtherle.io.File(imageFolder, imagefileName);
+        //                images.add(new de.schlichtherle.io.File(imagefile));
+        //            }
+        //
+        //            for (de.schlichtherle.io.File image : images) {
+        //                image.copyTo(new de.schlichtherle.io.File(zipFile + java.io.File.separator + image.getName()));
+        //            }
+        //            zipFile.createNewFile();
+        //            de.schlichtherle.io.File.umount();
+        //
+        //            deliveryFile = new File(zipFile.getAbsolutePath());
+        //
+        //        } catch (Exception e) {
+        //            createMessages(Helper.getTranslation("PluginErrorIOError"), e);
+        //            return false;
+        //        }
+        //
+        //        // - an anderen Ort kopieren
+        //        String destination = ConfigPlugins.getPluginConfig(this).getString("destinationFolder", "/opt/digiverso/pdfexport/");
+        String donwloadServer = ConfigPlugins.getPluginConfig(this).getString("donwloadServer", "http://leiden01.intranda.com/goobi/");
+        String downloadUrl = donwloadServer + destFile.getName();
+        //        try {
+        //            FileUtils.copyFileToDirectory(deliveryFile, new File(destination));
+        //            FileUtils.deleteQuietly(deliveryFile);
+        //        } catch (IOException e) {
+        //            createMessages(Helper.getTranslation("PluginErrorIOError"), e);
+        //            return false;
+        //        }
 
         // - Name/Link als Property speichern
 
