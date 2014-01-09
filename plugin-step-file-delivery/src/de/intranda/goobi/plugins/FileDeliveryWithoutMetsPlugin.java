@@ -110,13 +110,13 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
             }
         }
         if (mailAddress == null || mailAddress.length() == 0) {
-            createMessages(Helper.getTranslation("Delivery failed, email address is missing or empty."), null);
+            createMessages(Helper.getTranslation(process.getTitel() + ": delivery failed, email address is missing or empty."), null);
 
             return false;
         }
 
         if (format == null || format.isEmpty()) {
-            createMessages(Helper.getTranslation("Delivery failed, format is missing or empty."), null);
+            createMessages(Helper.getTranslation(process.getTitel() + ": delivery failed, format is missing or empty."), null);
             return false;
         }
 
@@ -131,7 +131,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
                 imagesFolderName = process.getImagesDirectory() + "pimped_pdf";
                 File pdffolder = new File(imagesFolderName);
                 if (!pdffolder.exists() && !pdffolder.mkdir()) {
-                    createMessages(Helper.getTranslation("Delivery failed, pdf folder is missing."), null);
+                    createMessages(Helper.getTranslation(process.getTitel() + ": delivery failed, pdf folder is missing."), null);
                     return false;
                 }
                 File[] listOfFiles = pdffolder.listFiles(pdffilter);
@@ -174,7 +174,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
                     method.getParams().setParameter("http.socket.timeout", contentServerTimeOut);
                     int statusCode = httpclient.executeMethod(method);
                     if (statusCode != HttpStatus.SC_OK) {
-                        logger.error("HttpStatus nicht ok", null);
+                        logger.error(process.getTitel() + ": HttpStatus nicht ok", null);
                         createMessages(Helper.getTranslation("PluginErrorPDFCreationError"), null);
                         return false;
                     }
@@ -196,13 +196,13 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
                 }
 
             } catch (SwapException e1) {
-                logger.error(e1);
+                logger.error(process.getTitel() + ": " + e1);
             } catch (DAOException e1) {
-                logger.error(e1);
+                logger.error(process.getTitel() + ": " + e1);
             } catch (IOException e1) {
-                logger.error(e1);
+                logger.error(process.getTitel() + ": " + e1);
             } catch (InterruptedException e1) {
-                logger.error(e1);
+                logger.error(process.getTitel() + ": " + e1);
             } finally {
                 if (method != null) {
                     method.releaseConnection();
@@ -213,16 +213,16 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
             try {
                 imagesFolderName = process.getImagesTifDirectory(false);
             } catch (SwapException e) {
-                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
+                createMessages(process.getTitel() + ": " + Helper.getTranslation("PluginErrorInvalidMetadata"), e);
                 return false;
             } catch (DAOException e) {
-                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
+                createMessages(process.getTitel() + ": " + Helper.getTranslation("PluginErrorInvalidMetadata"), e);
                 return false;
             } catch (IOException e) {
-                createMessages(Helper.getTranslation("PluginErrorIOError"), e);
+                createMessages(process.getTitel() + ": " + Helper.getTranslation("PluginErrorIOError"), e);
                 return false;
             } catch (InterruptedException e) {
-                createMessages(Helper.getTranslation("PluginErrorIOError"), e);
+                createMessages(process.getTitel() + ": " + Helper.getTranslation("PluginErrorIOError"), e);
                 return false;
             }
         }
@@ -253,17 +253,17 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
         try {
             origArchiveAfterZipChecksum = ArchiveUtils.createChecksum(compressedFile);
         } catch (NoSuchAlgorithmException e) {
-            logger.error("Failed to validate zip archive: " + e.toString() + ". Aborting.");
+            logger.error(process.getTitel() + ": " + "Failed to validate zip archive: " + e.toString() + ". Aborting.");
             return false;
         } catch (IOException e) {
-            logger.error("Failed to validate zip archive: " + e.toString() + ". Aborting.");
+            logger.error(process.getTitel() + ": " + "Failed to validate zip archive: " + e.toString() + ". Aborting.");
             return false;
         }
 
         if (ArchiveUtils.validateZip(compressedFile, true, imageFolder, filenames.length)) {
             logger.info("Zip archive for " + process.getTitel() + " is valid");
         } else {
-            logger.error("Zip archive for " + process.getTitel() + " is curropted. Aborting.");
+            logger.error(process.getTitel() + ": " + "Zip archive for " + process.getTitel() + " is curropted. Aborting.");
             return false;
         }
         // ////////Done validating archive
@@ -274,64 +274,24 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
             ArchiveUtils.copyFile(compressedFile, destFile);
             // validation
             if (!MessageDigest.isEqual(origArchiveAfterZipChecksum, ArchiveUtils.createChecksum(destFile))) {
-                logger.error("Error copying archive file to archive: Copy is not valid. Aborting.");
+                logger.error(process.getTitel() + ": " + "Error copying archive file to archive: Copy is not valid. Aborting.");
                 return false;
             }
         } catch (IOException e) {
-            logger.error("Error validating copied archive. Aborting.");
+            logger.error(process.getTitel() + ": " + "Error validating copied archive. Aborting.");
             return false;
         } catch (NoSuchAlgorithmException e) {
-            logger.error("Error validating copied archive. Aborting.");
+            logger.error(process.getTitel() + ": " + "Error validating copied archive. Aborting.");
             return false;
         }
         logger.info("Zip archive copied to " + destFile.getAbsolutePath() + " and found to be valid.");
-        // ////////done copying and validating archive
-
-        //        try {
-        //
-        //            de.schlichtherle.io.File imageFolder = new de.schlichtherle.io.File(imagesFolderName);
-        //            if (!imageFolder.exists() || !imageFolder.isDirectory()) {
-        //                return false;
-        //            }
-        //            String[] filenames = imageFolder.list(Helper.dataFilter);
-        //            if ((filenames == null) || (filenames.length == 0)) {
-        //                return false;
-        //            }
-        //            de.schlichtherle.io.File.setDefaultArchiveDetector(new DefaultArchiveDetector("tar.bz2|tar.gz|zip"));
-        //            de.schlichtherle.io.File zipFile =
-        //                    new de.schlichtherle.io.File(ConfigMain.getParameter("tempfolder") + System.currentTimeMillis() + md5.getMD5() + "_"
-        //                            + process.getTitel() + ".zip");
-        //            List<de.schlichtherle.io.File> images = new ArrayList<de.schlichtherle.io.File>();
-        //            for (String imagefileName : filenames) {
-        //                de.schlichtherle.io.File imagefile = new de.schlichtherle.io.File(imageFolder, imagefileName);
-        //                images.add(new de.schlichtherle.io.File(imagefile));
-        //            }
-        //
-        //            for (de.schlichtherle.io.File image : images) {
-        //                image.copyTo(new de.schlichtherle.io.File(zipFile + java.io.File.separator + image.getName()));
-        //            }
-        //            zipFile.createNewFile();
-        //            de.schlichtherle.io.File.umount();
-        //
-        //            deliveryFile = new File(zipFile.getAbsolutePath());
-        //
-        //        } catch (Exception e) {
-        //            createMessages(Helper.getTranslation("PluginErrorIOError"), e);
-        //            return false;
-        //        }
+       
         //
         //        // - an anderen Ort kopieren
         //        String destination = ConfigPlugins.getPluginConfig(this).getString("destinationFolder", "/opt/digiverso/pdfexport/");
         String donwloadServer = ConfigPlugins.getPluginConfig(this).getString("donwloadServer", "http://leiden01.intranda.com/goobi/");
         String downloadUrl = donwloadServer + destFile.getName();
-        //        try {
-        //            FileUtils.copyFileToDirectory(deliveryFile, new File(destination));
-        //            FileUtils.deleteQuietly(deliveryFile);
-        //        } catch (IOException e) {
-        //            createMessages(Helper.getTranslation("PluginErrorIOError"), e);
-        //            return false;
-        //        }
-
+       
         // - Name/Link als Property speichern
 
         boolean matched = false;
@@ -354,7 +314,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
         try {
             new ProzessDAO().save(process);
         } catch (DAOException e) {
-            createMessages(Helper.getTranslation("fehlerNichtSpeicherbar"), e);
+            createMessages(process.getTitel() + ": " + Helper.getTranslation("fehlerNichtSpeicherbar"), e);
             return false;
         }
 

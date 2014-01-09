@@ -526,10 +526,6 @@ public class ArchiveUtils {
                 logger.debug("Adding file " + file.getAbsolutePath() + " to zipfile " + zipFile.getAbsolutePath());
                 zipFile(file, "", zos, checksum);
             }
-        } catch (FileNotFoundException e) {
-            logger.debug("Encountered FileNotFound Exception, probably due to trying to archive a directory. Ignoring");
-        } catch (IOException e) {
-            logger.error(e.toString(), e);
         } finally {
             if (zos != null) {
                 zos.close();
