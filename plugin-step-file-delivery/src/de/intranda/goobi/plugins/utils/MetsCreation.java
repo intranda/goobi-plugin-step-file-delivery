@@ -49,12 +49,12 @@ import ugh.exceptions.ReadException;
 import ugh.exceptions.TypeNotAllowedForParentException;
 import ugh.exceptions.WriteException;
 import ugh.fileformats.mets.MetsModsImportExport;
-import de.sub.goobi.Beans.ProjectFileGroup;
-import de.sub.goobi.Beans.Prozess;
-import de.sub.goobi.Export.dms.ExportDms_CorrectRusdml;
-import de.sub.goobi.Metadaten.MetadatenImagesHelper;
-import de.sub.goobi.config.ConfigMain;
+
+import org.goobi.beans.Process;
+import org.goobi.beans.ProjectFileGroup;
+
 import de.sub.goobi.config.ConfigProjects;
+import de.sub.goobi.config.ConfigurationHelper;
 import de.sub.goobi.helper.Helper;
 import de.sub.goobi.helper.VariableReplacer;
 import de.sub.goobi.helper.exceptions.DAOException;
@@ -62,6 +62,7 @@ import de.sub.goobi.helper.exceptions.ExportFileException;
 import de.sub.goobi.helper.exceptions.InvalidImagesException;
 import de.sub.goobi.helper.exceptions.SwapException;
 import de.sub.goobi.helper.exceptions.UghHelperException;
+import de.sub.goobi.metadaten.MetadatenImagesHelper;
 
 public class MetsCreation {
     protected Helper help = new Helper();
@@ -89,7 +90,7 @@ public class MetsCreation {
      * @throws ReadException
      * @throws TypeNotAllowedForParentException
      */
-    public boolean startExport(Prozess myProzess, String inZielVerzeichnis) throws IOException, InterruptedException, PreferencesException,
+    public boolean startExport(Process myProzess, String inZielVerzeichnis) throws IOException, InterruptedException, PreferencesException,
             WriteException, DocStructHasNoTypeException, MetadataTypeNotAllowedException, ExportFileException, UghHelperException, ReadException,
             SwapException, DAOException, TypeNotAllowedForParentException {
 
@@ -99,13 +100,6 @@ public class MetsCreation {
         this.myPrefs = myProzess.getRegelsatz().getPreferences();
         String atsPpnBand = myProzess.getTitel();
         Fileformat gdzfile = myProzess.readMetadataFile();
-
-        /* nur beim Rusdml-Projekt die Metadaten aufbereiten */
-        ConfigProjects cp = new ConfigProjects(myProzess.getProjekt().getTitel());
-        if (cp.getParamList("dmsImport.check").contains("rusdml")) {
-            ExportDms_CorrectRusdml expcorr = new ExportDms_CorrectRusdml(myProzess, this.myPrefs, gdzfile);
-            atsPpnBand = expcorr.correctionStart();
-        }
 
 //        String zielVerzeichnis = prepareUserDirectory(inZielVerzeichnis);
 
@@ -129,7 +123,7 @@ public class MetsCreation {
      * @throws TypeNotAllowedForParentException
      */
 
-    public boolean writeMetsFile(Prozess myProzess, String targetFileName, Fileformat gdzfile, boolean writeLocalFilegroup)
+    public boolean writeMetsFile(Process myProzess, String targetFileName, Fileformat gdzfile, boolean writeLocalFilegroup)
             throws PreferencesException, WriteException, IOException, InterruptedException, SwapException, DAOException,
             TypeNotAllowedForParentException {
         myPrefs = myProzess.getRegelsatz().getPreferences();
@@ -201,7 +195,7 @@ public class MetsCreation {
         // Replace all pathes with the given VariableReplacer, also the file
         // group pathes!
         VariableReplacer vp = new VariableReplacer(mm.getDigitalDocument(), this.myPrefs, myProzess, null);
-        Set<ProjectFileGroup> myFilegroups = myProzess.getProjekt().getFilegroups();
+        List<ProjectFileGroup> myFilegroups = myProzess.getProjekt().getFilegroups();
 
         if (myFilegroups != null && myFilegroups.size() > 0) {
             for (ProjectFileGroup pfg : myFilegroups) {
@@ -250,7 +244,7 @@ public class MetsCreation {
 
         // if (!ConfigMain.getParameter("ImagePrefix", "\\d{8}").equals("\\d{8}")) {
         List<String> images = new ArrayList<String>();
-        if (ConfigMain.getBooleanParameter("ExportValidateImages", true)) {
+        if (ConfigurationHelper.getInstance().isExportValidateImages()) {
             try {
                 // TODO andere Dateigruppen nicht mit image Namen ersetzen
                 images = new MetadatenImagesHelper(this.myPrefs, dd).getDataFiles(myProzess);

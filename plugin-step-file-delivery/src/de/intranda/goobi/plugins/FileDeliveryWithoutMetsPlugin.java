@@ -14,7 +14,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Properties;
 
 import javax.mail.Message;
@@ -31,7 +30,6 @@ import net.xeoh.plugins.base.annotations.PluginImplementation;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpStatus;
 import org.apache.commons.httpclient.methods.GetMethod;
-import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 import org.goobi.production.cli.helper.WikiFieldHelper;
 import org.goobi.production.enums.PluginGuiType;
@@ -41,18 +39,18 @@ import org.goobi.production.plugin.interfaces.IPlugin;
 import org.goobi.production.plugin.interfaces.IStepPlugin;
 
 import de.intranda.goobi.plugins.utils.ArchiveUtils;
-import de.sub.goobi.Beans.Prozess;
-import de.sub.goobi.Beans.Prozesseigenschaft;
-import de.sub.goobi.Beans.Schritt;
-import de.sub.goobi.Persistence.ProzessDAO;
-import de.sub.goobi.Persistence.apache.ProcessManager;
-import de.sub.goobi.Persistence.apache.StepObject;
-import de.sub.goobi.config.ConfigMain;
+
+import org.goobi.beans.Process;
+import org.goobi.beans.Processproperty;
+import org.goobi.beans.Step;
+
 import de.sub.goobi.config.ConfigPlugins;
+import de.sub.goobi.config.ConfigurationHelper;
 import de.sub.goobi.helper.Helper;
-import de.sub.goobi.helper.encryption.MD5;
 import de.sub.goobi.helper.exceptions.DAOException;
 import de.sub.goobi.helper.exceptions.SwapException;
+import de.sub.goobi.persistence.managers.ProcessManager;
+import dubious.sub.goobi.helper.encryption.MD5;
 
 @PluginImplementation
 public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
@@ -60,7 +58,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
 
     private String pluginname = "FileDeliveryWithoutMets";
     // private Schritt step;
-    private Prozess process;
+    private Process process;
     private String returnPath;
 
     private static final String PROPERTYTITLE = "PDFURL";
@@ -81,20 +79,9 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
     }
 
     @Override
-    public void initialize(Schritt step, String returnPath) {
+    public void initialize(Step step, String returnPath) {
         // this.step = step;
         this.process = step.getProzess();
-        this.returnPath = returnPath;
-    }
-
-    @Override
-    public void initialize(StepObject stepobject, String returnPath) {
-        try {
-            // this.step = new SchrittDAO().get(stepobject.getId());
-            this.process = new ProzessDAO().get(stepobject.getProcessId());
-        } catch (DAOException e) {
-
-        }
         this.returnPath = returnPath;
     }
 
@@ -102,7 +89,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
     public boolean execute() {
         String mailAddress = "";
         String format = "";
-        for (Prozesseigenschaft pe : process.getEigenschaftenList()) {
+        for (Processproperty pe : process.getEigenschaftenList()) {
             if (pe.getTitel().equalsIgnoreCase("email")) {
                 mailAddress = pe.getWert();
             } else if (pe.getTitel().equalsIgnoreCase("format")) {
@@ -143,7 +130,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
                     // - PDF erzeugen
 
                     URL goobiContentServerUrl = null;
-                    String contentServerUrl = ConfigPlugins.getPluginConfig(this).getString("contentServerUrl");
+                    String contentServerUrl = ConfigurationHelper.getInstance().getContentServerUrl();
 
                     if (contentServerUrl == null || contentServerUrl.length() == 0) {
                         contentServerUrl = "http://localhost:8080/goobi" + "/cs/cs?action=pdf&resolution=150&convertToGrayscale&images=";
@@ -165,7 +152,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
                     String imageString = url.substring(0, url.length() - 1);
                     String targetFileName = "&targetFileName=" + process.getTitel() + ".pdf";
                     goobiContentServerUrl = new URL(contentServerUrl + imageString + targetFileName);
-                    Integer contentServerTimeOut = ConfigMain.getIntParameter("goobiContentServerTimeOut", 60000);
+                    Integer contentServerTimeOut = ConfigurationHelper.getInstance().getGoobiContentServerTimeOut();
 
                     HttpClient httpclient = new HttpClient();
                     logger.debug("Retrieving: " + goobiContentServerUrl.toString());
@@ -228,7 +215,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
         }
 
         File compressedFile =
-                new File(ConfigMain.getParameter("tempfolder") + System.currentTimeMillis() + md5.getMD5() + "_" + process.getTitel() + ".zip");
+                new File(ConfigurationHelper.getInstance().getTemporaryFolder() + System.currentTimeMillis() + md5.getMD5() + "_" + process.getTitel() + ".zip");
 
         File imageFolder = new File(imagesFolderName);
         File[] filenames = imageFolder.listFiles(Helper.dataFilter);
@@ -295,7 +282,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
         // - Name/Link als Property speichern
 
         boolean matched = false;
-        for (Prozesseigenschaft pe : process.getEigenschaftenList()) {
+        for (Processproperty pe : process.getEigenschaftenList()) {
             if (pe.getTitel().equals(PROPERTYTITLE)) {
                 pe.setWert(downloadUrl);
                 matched = true;
@@ -304,7 +291,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
         }
 
         if (!matched) {
-            Prozesseigenschaft pe = new Prozesseigenschaft();
+            Processproperty pe = new Processproperty();
             pe.setTitel(PROPERTYTITLE);
             pe.setWert(downloadUrl);
             process.getEigenschaften().add(pe);
@@ -312,7 +299,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
         }
 
         try {
-            new ProzessDAO().save(process);
+           ProcessManager.saveProcess(process);
         } catch (DAOException e) {
             createMessages(process.getTitel() + ": " + Helper.getTranslation("fehlerNichtSpeicherbar"), e);
             return false;
@@ -352,7 +339,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
     }
 
     @Override
-    public Schritt getStep() {
+    public Step getStep() {
         return null;
     }
 
@@ -463,5 +450,10 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
             return name.endsWith(".pdf") || name.endsWith(".PDF");
         }
     };
+
+    @Override
+    public String getPagePath() {
+        return null;
+    }
 
 }

@@ -40,19 +40,19 @@ import org.goobi.production.plugin.interfaces.IStepPlugin;
 
 import ugh.exceptions.DocStructHasNoTypeException;
 import de.schlichtherle.io.DefaultArchiveDetector;
-import de.sub.goobi.Beans.Prozess;
-import de.sub.goobi.Beans.Prozesseigenschaft;
-import de.sub.goobi.Beans.Schritt;
-import de.sub.goobi.Metadaten.MetadatenVerifizierungWithoutHibernate;
-import de.sub.goobi.Persistence.ProzessDAO;
-import de.sub.goobi.Persistence.apache.ProcessManager;
-import de.sub.goobi.Persistence.apache.StepObject;
-import de.sub.goobi.config.ConfigMain;
+
+import org.goobi.beans.Process;
+import org.goobi.beans.Processproperty;
+import org.goobi.beans.Step;
+
 import de.sub.goobi.config.ConfigPlugins;
+import de.sub.goobi.config.ConfigurationHelper;
 import de.sub.goobi.helper.Helper;
-import de.sub.goobi.helper.encryption.MD5;
 import de.sub.goobi.helper.exceptions.DAOException;
 import de.sub.goobi.helper.exceptions.SwapException;
+import de.sub.goobi.metadaten.MetadatenVerifizierung;
+import de.sub.goobi.persistence.managers.ProcessManager;
+import dubious.sub.goobi.helper.encryption.MD5;
 
 @PluginImplementation
 public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
@@ -60,7 +60,7 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
 
     private String pluginname = "FileDeliveryWithMets";
     // private Schritt step;
-    private Prozess process;
+    private Process process;
     private String returnPath;
 
     private static final String PROPERTYTITLE = "PDFURL";
@@ -81,28 +81,19 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
     }
 
     @Override
-    public void initialize(Schritt step, String returnPath) {
+    public void initialize(Step step, String returnPath) {
         // this.step = step;
         this.process = step.getProzess();
         this.returnPath = returnPath;
     }
 
-    @Override
-    public void initialize(StepObject stepobject, String returnPath) {
-        try {
-            // this.step = new SchrittDAO().get(stepobject.getId());
-            this.process = new ProzessDAO().get(stepobject.getProcessId());
-        } catch (DAOException e) {
-
-        }
-        this.returnPath = returnPath;
-    }
+   
 
     @Override
     public boolean execute() {
         String mailAddress = "";
         String format = "";
-        for (Prozesseigenschaft pe : process.getEigenschaftenList()) {
+        for (Processproperty pe : process.getEigenschaftenList()) {
             if (pe.getTitel().equalsIgnoreCase("email")) {
                 mailAddress = pe.getWert();
             } else if (pe.getTitel().equalsIgnoreCase("format")) {
@@ -118,12 +109,12 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
         if (format.equalsIgnoreCase("PDF")) {
 
             // TODO sicherstellen das filegroup PDF erzeugt und in im gcs für pdf eingestellt wurde
-            MetadatenVerifizierungWithoutHibernate mv = new MetadatenVerifizierungWithoutHibernate();
+            MetadatenVerifizierung mv = new MetadatenVerifizierung();
             if (!mv.validate(process)) {
                 createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), null);
                 return false;
             }
-            String tempfolder = ConfigMain.getParameter("tempfolder", "/opt/digiverso/goobi/temp/");
+            String tempfolder = ConfigurationHelper.getInstance().getTemporaryFolder();
 
             // - umbenennen in unique Namen
             deliveryFile = new File(tempfolder, System.currentTimeMillis() + md5.getMD5() + "_" + process.getTitel() + ".pdf");
@@ -154,7 +145,7 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
                 String imageString = url.substring(0, url.length() - 1);
                 String targetFileName = "&targetFileName=" + process.getTitel() + ".pdf";
                 goobiContentServerUrl = new URL(contentServerUrl + imageString + targetFileName);
-                Integer contentServerTimeOut = ConfigMain.getIntParameter("goobiContentServerTimeOut", 60000);
+                Integer contentServerTimeOut = ConfigurationHelper.getInstance().getGoobiContentServerTimeOut();
 
                 HttpClient httpclient = new HttpClient();
                 logger.debug("Retrieving: " + goobiContentServerUrl.toString());
@@ -207,7 +198,7 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
         } else {
             de.schlichtherle.io.File.setDefaultArchiveDetector(new DefaultArchiveDetector("tar.bz2|tar.gz|zip"));
             de.schlichtherle.io.File zipFile =
-                    new de.schlichtherle.io.File(ConfigMain.getParameter("tempfolder") + System.currentTimeMillis() + md5.getMD5() + "_"
+                    new de.schlichtherle.io.File(ConfigurationHelper.getInstance().getTemporaryFolder() + System.currentTimeMillis() + md5.getMD5() + "_"
                             + process.getTitel() + ".zip");
             try {
 
@@ -266,7 +257,7 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
         // - Name/Link als Property speichern
 
         boolean matched = false;
-        for (Prozesseigenschaft pe : process.getEigenschaftenList()) {
+        for (Processproperty pe : process.getEigenschaftenList()) {
             if (pe.getTitel().equals(PROPERTYTITLE)) {
                 pe.setWert(downloadUrl);
                 matched = true;
@@ -275,7 +266,7 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
         }
 
         if (!matched) {
-            Prozesseigenschaft pe = new Prozesseigenschaft();
+            Processproperty pe = new Processproperty();
             pe.setTitel(PROPERTYTITLE);
             pe.setWert(downloadUrl);
             process.getEigenschaften().add(pe);
@@ -283,7 +274,7 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
         }
 
         try {
-            new ProzessDAO().save(process);
+           ProcessManager.saveProcess(process);
         } catch (DAOException e) {
             createMessages(Helper.getTranslation("fehlerNichtSpeicherbar"), e);
             return false;
@@ -319,13 +310,11 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
 
     @Override
     public HashMap<String, StepReturnValue> validate() {
-        // TODO Auto-generated method stub
         return null;
     }
 
     @Override
-    public Schritt getStep() {
-        // TODO
+    public Step getStep() {
         return null;
     }
 
@@ -429,5 +418,10 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
             return name.endsWith(".tif") || name.endsWith(".TIF");
         }
     };
+
+    @Override
+    public String getPagePath() {
+        return null;
+    }
 
 }
