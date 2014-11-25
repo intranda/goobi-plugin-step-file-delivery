@@ -250,7 +250,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
         if (ArchiveUtils.validateZip(compressedFile, true, imageFolder, filenames.length)) {
             logger.info("Zip archive for " + process.getTitel() + " is valid");
         } else {
-            logger.error(process.getTitel() + ": " + "Zip archive for " + process.getTitel() + " is curropted. Aborting.");
+            logger.error(process.getTitel() + ": " + "Zip archive for " + process.getTitel() + " is corrupted. Aborting.");
             return false;
         }
         // ////////Done validating archive
