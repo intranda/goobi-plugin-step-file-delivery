@@ -126,32 +126,13 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
                 if (listOfFiles == null || listOfFiles.length == 0) {
                     deliveryFile = new File(pdffolder, process.getTitel() + ".pdf");
 
-                    //                  String metsfile = tempfolder + process.getTitel() + "_mets.xml";
                     // - PDF erzeugen
 
-                    URL goobiContentServerUrl = null;
-                    String contentServerUrl = ConfigurationHelper.getInstance().getContentServerUrl();
+                    String contentServerUrl =
+                            "http://localhost:8080/goobi" + "/cs/cs?action=pdf&resolution=150&convertToGrayscale&folder="
+                                    + process.getImagesTifDirectory(true) + "&targetFileName=" + process.getTitel() + ".pdf";
 
-                    if (contentServerUrl == null || contentServerUrl.length() == 0) {
-                        contentServerUrl = "http://localhost:8080/goobi" + "/cs/cs?action=pdf&resolution=150&convertToGrayscale&images=";
-                    }
-                    String url = "";
-                    //                FilenameFilter filter = tiffilter;
-                    File imagesDir = new File(process.getImagesTifDirectory(true));
-                    File[] meta = imagesDir.listFiles(tiffilter);
-                    ArrayList<String> filenames = new ArrayList<String>();
-                    for (File data : meta) {
-                        String file = "";
-                        file += data.toURI().toURL();
-                        filenames.add(file);
-                    }
-                    Collections.sort(filenames);
-                    for (String f : filenames) {
-                        url = url + f + "$";
-                    }
-                    String imageString = url.substring(0, url.length() - 1);
-                    String targetFileName = "&targetFileName=" + process.getTitel() + ".pdf";
-                    goobiContentServerUrl = new URL(contentServerUrl + imageString + targetFileName);
+                    URL goobiContentServerUrl = new URL(contentServerUrl);
                     Integer contentServerTimeOut = ConfigurationHelper.getInstance().getGoobiContentServerTimeOut();
 
                     HttpClient httpclient = new HttpClient();
@@ -215,7 +196,8 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
         }
 
         File compressedFile =
-                new File(ConfigurationHelper.getInstance().getTemporaryFolder() + System.currentTimeMillis() + md5.getMD5() + "_" + process.getTitel() + ".zip");
+                new File(ConfigurationHelper.getInstance().getTemporaryFolder() + System.currentTimeMillis() + md5.getMD5() + "_"
+                        + process.getTitel() + ".zip");
 
         File imageFolder = new File(imagesFolderName);
         File[] filenames = imageFolder.listFiles(Helper.dataFilter);
@@ -272,13 +254,13 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
             return false;
         }
         logger.info("Zip archive copied to " + destFile.getAbsolutePath() + " and found to be valid.");
-       
+
         //
         //        // - an anderen Ort kopieren
         //        String destination = ConfigPlugins.getPluginConfig(this).getString("destinationFolder", "/opt/digiverso/pdfexport/");
         String donwloadServer = ConfigPlugins.getPluginConfig(this).getString("donwloadServer", "http://leiden01.intranda.com/goobi/");
         String downloadUrl = donwloadServer + destFile.getName();
-       
+
         // - Name/Link als Property speichern
 
         boolean matched = false;
@@ -299,7 +281,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
         }
 
         try {
-           ProcessManager.saveProcess(process);
+            ProcessManager.saveProcess(process);
         } catch (DAOException e) {
             createMessages(process.getTitel() + ": " + Helper.getTranslation("fehlerNichtSpeicherbar"), e);
             return false;
