@@ -1,11 +1,10 @@
 package de.intranda.goobi.plugins;
 
-import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -26,9 +25,6 @@ import javax.mail.internet.MimeMultipart;
 
 import net.xeoh.plugins.base.annotations.PluginImplementation;
 
-import org.apache.commons.httpclient.HttpClient;
-import org.apache.commons.httpclient.HttpStatus;
-import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 import org.goobi.production.cli.helper.WikiFieldHelper;
@@ -48,6 +44,7 @@ import org.goobi.beans.Step;
 import de.sub.goobi.config.ConfigPlugins;
 import de.sub.goobi.config.ConfigurationHelper;
 import de.sub.goobi.helper.Helper;
+import de.sub.goobi.helper.HttpClientHelper;
 import de.sub.goobi.helper.exceptions.DAOException;
 import de.sub.goobi.helper.exceptions.SwapException;
 import de.sub.goobi.metadaten.MetadatenVerifizierung;
@@ -87,8 +84,6 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
         this.returnPath = returnPath;
     }
 
-   
-
     @Override
     public boolean execute() {
         String mailAddress = "";
@@ -120,7 +115,7 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
             deliveryFile = new File(tempfolder, System.currentTimeMillis() + md5.getMD5() + "_" + process.getTitel() + ".pdf");
             String metsfile = tempfolder + process.getTitel() + "_mets.xml";
             // - PDF erzeugen
-            GetMethod method = null;
+
             try {
                 URL goobiContentServerUrl = null;
                 String contentServerUrl = ConfigPlugins.getPluginConfig(this).getString("contentServerUrl");
@@ -145,34 +140,13 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
                 String imageString = url.substring(0, url.length() - 1);
                 String targetFileName = "&targetFileName=" + process.getTitel() + ".pdf";
                 goobiContentServerUrl = new URL(contentServerUrl + imageString + targetFileName);
-                Integer contentServerTimeOut = ConfigurationHelper.getInstance().getGoobiContentServerTimeOut();
 
-                HttpClient httpclient = new HttpClient();
-                logger.debug("Retrieving: " + goobiContentServerUrl.toString());
-                method = new GetMethod(goobiContentServerUrl.toString());
+                OutputStream fos = new FileOutputStream(deliveryFile);
 
-                method.getParams().setParameter("http.socket.timeout", contentServerTimeOut);
-                int statusCode = httpclient.executeMethod(method);
-                if (statusCode != HttpStatus.SC_OK) {
-                    logger.error("HttpStatus nicht ok", null);
-                    createMessages(Helper.getTranslation("PluginErrorPDFCreationError"), null);
-                    return false;
-                }
+                HttpClientHelper.getStreamFromUrl(goobiContentServerUrl.toString(), fos);
 
-                InputStream inStream = method.getResponseBodyAsStream();
-                BufferedInputStream bis = new BufferedInputStream(inStream);
-                FileOutputStream fos = new FileOutputStream(deliveryFile);
-                byte[] bytes = new byte[8192];
-                int count = bis.read(bytes);
-                while ((count != -1) && (count <= 8192)) {
-                    fos.write(bytes, 0, count);
-                    count = bis.read(bytes);
-                }
-                if (count != -1) {
-                    fos.write(bytes, 0, count);
-                }
                 fos.close();
-                bis.close();
+
                 FileUtils.deleteQuietly(new File(metsfile));
 
             } catch (DocStructHasNoTypeException e) {
@@ -190,16 +164,12 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
             } catch (InterruptedException e) {
                 createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
                 return false;
-            } finally {
-                if (method != null) {
-                    method.releaseConnection();
-                }
             }
         } else {
             de.schlichtherle.io.File.setDefaultArchiveDetector(new DefaultArchiveDetector("tar.bz2|tar.gz|zip"));
             de.schlichtherle.io.File zipFile =
-                    new de.schlichtherle.io.File(ConfigurationHelper.getInstance().getTemporaryFolder() + System.currentTimeMillis() + md5.getMD5() + "_"
-                            + process.getTitel() + ".zip");
+                    new de.schlichtherle.io.File(ConfigurationHelper.getInstance().getTemporaryFolder() + System.currentTimeMillis() + md5.getMD5()
+                            + "_" + process.getTitel() + ".zip");
             try {
 
                 String imagesFolderName = process.getImagesTifDirectory(false);
@@ -274,7 +244,7 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
         }
 
         try {
-           ProcessManager.saveProcess(process);
+            ProcessManager.saveProcess(process);
         } catch (DAOException e) {
             createMessages(Helper.getTranslation("fehlerNichtSpeicherbar"), e);
             return false;

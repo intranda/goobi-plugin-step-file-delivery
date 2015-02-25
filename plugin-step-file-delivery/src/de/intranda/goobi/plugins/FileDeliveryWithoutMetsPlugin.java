@@ -6,6 +6,7 @@ import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.security.MessageDigest;
@@ -27,9 +28,6 @@ import javax.mail.internet.MimeMultipart;
 
 import net.xeoh.plugins.base.annotations.PluginImplementation;
 
-import org.apache.commons.httpclient.HttpClient;
-import org.apache.commons.httpclient.HttpStatus;
-import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.log4j.Logger;
 import org.goobi.production.cli.helper.WikiFieldHelper;
 import org.goobi.production.enums.PluginGuiType;
@@ -47,6 +45,7 @@ import org.goobi.beans.Step;
 import de.sub.goobi.config.ConfigPlugins;
 import de.sub.goobi.config.ConfigurationHelper;
 import de.sub.goobi.helper.Helper;
+import de.sub.goobi.helper.HttpClientHelper;
 import de.sub.goobi.helper.exceptions.DAOException;
 import de.sub.goobi.helper.exceptions.SwapException;
 import de.sub.goobi.persistence.managers.ProcessManager;
@@ -113,7 +112,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
 
         if (format.equalsIgnoreCase("PDF")) {
 
-            GetMethod method = null;
+           
             try {
                 imagesFolderName = process.getImagesDirectory() + "pimped_pdf";
                 File pdffolder = new File(imagesFolderName);
@@ -133,34 +132,13 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
                                     + process.getImagesTifDirectory(true) + "&targetFileName=" + process.getTitel() + ".pdf";
 
                     URL goobiContentServerUrl = new URL(contentServerUrl);
-                    Integer contentServerTimeOut = ConfigurationHelper.getInstance().getGoobiContentServerTimeOut();
+                    OutputStream fos = new FileOutputStream(deliveryFile);
 
-                    HttpClient httpclient = new HttpClient();
-                    logger.debug("Retrieving: " + goobiContentServerUrl.toString());
-                    method = new GetMethod(goobiContentServerUrl.toString());
+                    HttpClientHelper.getStreamFromUrl(goobiContentServerUrl.toString(), fos);
 
-                    method.getParams().setParameter("http.socket.timeout", contentServerTimeOut);
-                    int statusCode = httpclient.executeMethod(method);
-                    if (statusCode != HttpStatus.SC_OK) {
-                        logger.error(process.getTitel() + ": HttpStatus nicht ok", null);
-                        createMessages(Helper.getTranslation("PluginErrorPDFCreationError"), null);
-                        return false;
-                    }
-
-                    InputStream inStream = method.getResponseBodyAsStream();
-                    BufferedInputStream bis = new BufferedInputStream(inStream);
-                    FileOutputStream fos = new FileOutputStream(deliveryFile);
-                    byte[] bytes = new byte[8192];
-                    int count = bis.read(bytes);
-                    while ((count != -1) && (count <= 8192)) {
-                        fos.write(bytes, 0, count);
-                        count = bis.read(bytes);
-                    }
-                    if (count != -1) {
-                        fos.write(bytes, 0, count);
-                    }
                     fos.close();
-                    bis.close();
+                    
+                    
                 }
 
             } catch (SwapException e1) {
@@ -171,10 +149,6 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
                 logger.error(process.getTitel() + ": " + e1);
             } catch (InterruptedException e1) {
                 logger.error(process.getTitel() + ": " + e1);
-            } finally {
-                if (method != null) {
-                    method.releaseConnection();
-                }
             }
 
         } else {
