@@ -20,12 +20,12 @@
 
 
 	<path id="classpath">
-		<fileset dir="/opt/digiverso/goobi-jsf2/lib" />
+	    <fileset dir="/opt/digiverso/goobilibs/lib"/>
 		<fileset dir="/opt/digiverso/libs" />
 	</path>
 
 	<path id="classpath-test">
-		<fileset dir="/opt/digiverso/goobilibs/lib" />
+	    <fileset dir="/opt/digiverso/goobilibs/lib"/>
 		<fileset dir="/opt/digiverso/libs" />
 		<pathelement location="${dir.build}" />
 		<pathelement location="/opt/digiverso/junit/junit.jar" />
@@ -105,7 +105,7 @@
 
 	<target name="compile">
 		<echo>Using jenkins compiler</echo>
-		<javac destdir="${dir.build}" includeantruntime="false" debug="true">
+		<javac destdir="${dir.build}" includeantruntime="false" target="7" encoding="UTF8" source="7" debug="true" debuglevel="lines,vars,source">
 			<classpath refid="classpath" />
 			<compilerarg value="-Xlint" />
 			<src path="src" />
