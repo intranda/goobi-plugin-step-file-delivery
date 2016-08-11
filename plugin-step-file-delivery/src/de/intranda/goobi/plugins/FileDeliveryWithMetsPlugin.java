@@ -45,11 +45,12 @@ import de.sub.goobi.config.ConfigPlugins;
 import de.sub.goobi.config.ConfigurationHelper;
 import de.sub.goobi.helper.Helper;
 import de.sub.goobi.helper.HttpClientHelper;
+import de.sub.goobi.helper.NIOFileUtils;
+import de.sub.goobi.helper.encryption.MD5;
 import de.sub.goobi.helper.exceptions.DAOException;
 import de.sub.goobi.helper.exceptions.SwapException;
 import de.sub.goobi.metadaten.MetadatenVerifizierung;
 import de.sub.goobi.persistence.managers.ProcessManager;
-import dubious.sub.goobi.helper.encryption.MD5;
 
 @PluginImplementation
 public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
@@ -72,7 +73,6 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
         return pluginname;
     }
 
-    @Override
     public String getDescription() {
         return pluginname;
     }
@@ -143,7 +143,7 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
 
                 OutputStream fos = new FileOutputStream(deliveryFile);
 
-                HttpClientHelper.getStreamFromUrl(goobiContentServerUrl.toString(), fos);
+                HttpClientHelper.getStreamFromUrl(fos, goobiContentServerUrl.toString());
 
                 fos.close();
 
@@ -167,9 +167,8 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
             }
         } else {
             de.schlichtherle.io.File.setDefaultArchiveDetector(new DefaultArchiveDetector("tar.bz2|tar.gz|zip"));
-            de.schlichtherle.io.File zipFile =
-                    new de.schlichtherle.io.File(ConfigurationHelper.getInstance().getTemporaryFolder() + System.currentTimeMillis() + md5.getMD5()
-                            + "_" + process.getTitel() + ".zip");
+            de.schlichtherle.io.File zipFile = new de.schlichtherle.io.File(ConfigurationHelper.getInstance().getTemporaryFolder() + System
+                    .currentTimeMillis() + md5.getMD5() + "_" + process.getTitel() + ".zip");
             try {
 
                 String imagesFolderName = process.getImagesTifDirectory(false);
@@ -177,10 +176,11 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
                 if (!imageFolder.exists() || !imageFolder.isDirectory()) {
                     return false;
                 }
-                String[] filenames = imageFolder.list(Helper.dataFilter);
-                if ((filenames == null) || (filenames.length == 0)) {
-                    return false;
-                }
+                List<String> filenames = NIOFileUtils.list(imagesFolderName, NIOFileUtils.DATA_FILTER);
+                //                String[] filenames = imageFolder.list(Helper.dataFilter);
+                //                if ((filenames == null) || (filenames.length == 0)) {
+                //                    return false;
+                //                }
 
                 List<de.schlichtherle.io.File> images = new ArrayList<de.schlichtherle.io.File>();
                 for (String imagefileName : filenames) {
@@ -316,9 +316,8 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
         String SMTP_USE_SSL = ConfigPlugins.getPluginConfig(this).getString("SMTP_USE_SSL", "1");
         String SENDER_ADDRESS = ConfigPlugins.getPluginConfig(this).getString("SENDER_ADDRESS", "TODO");
 
-        String MAIL_SUBJECT =
-                ConfigPlugins.getPluginConfig(this).getString("MAIL_SUBJECT",
-                        "Leiden University – Digitisation Order Special Collections University Library");
+        String MAIL_SUBJECT = ConfigPlugins.getPluginConfig(this).getString("MAIL_SUBJECT",
+                "Leiden University – Digitisation Order Special Collections University Library");
         String MAIL_TEXT = ConfigPlugins.getPluginConfig(this).getString("MAIL_BODY", "{0}");
         MAIL_TEXT = MAIL_TEXT.replace("{0}", downloadUrl);
 

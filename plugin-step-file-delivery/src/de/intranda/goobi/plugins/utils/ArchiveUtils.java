@@ -26,10 +26,12 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
@@ -502,11 +504,11 @@ public class ArchiveUtils {
         return path;
     }
 
-    public static byte[] zipFiles(File[] sourceFiles, File zipFile) throws IOException {
+    public static byte[] zipFiles(List<Path> sourceFiles, File zipFile) throws IOException {
 
         MessageDigest checksum = null;
 
-        if (zipFile == null || sourceFiles == null || sourceFiles.length == 0) {
+        if (zipFile == null || sourceFiles == null || sourceFiles.size() == 0) {
             return null;
         }
 
@@ -522,9 +524,9 @@ public class ArchiveUtils {
                 checksum = null;
             }
             zos = new ZipOutputStream(fos);
-            for (File file : sourceFiles) {
-                logger.debug("Adding file " + file.getAbsolutePath() + " to zipfile " + zipFile.getAbsolutePath());
-                zipFile(file, "", zos, checksum);
+            for (Path file : sourceFiles) {
+                logger.debug("Adding file " + file.toString() + " to zipfile " + zipFile.getAbsolutePath());
+                zipFile(file.toFile(), "", zos, checksum);
             }
         } finally {
             if (zos != null) {

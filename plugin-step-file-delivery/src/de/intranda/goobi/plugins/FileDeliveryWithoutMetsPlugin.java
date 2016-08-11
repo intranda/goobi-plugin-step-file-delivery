@@ -9,12 +9,14 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Properties;
 
 import javax.mail.Message;
@@ -46,10 +48,11 @@ import de.sub.goobi.config.ConfigPlugins;
 import de.sub.goobi.config.ConfigurationHelper;
 import de.sub.goobi.helper.Helper;
 import de.sub.goobi.helper.HttpClientHelper;
+import de.sub.goobi.helper.NIOFileUtils;
+import de.sub.goobi.helper.encryption.MD5;
 import de.sub.goobi.helper.exceptions.DAOException;
 import de.sub.goobi.helper.exceptions.SwapException;
 import de.sub.goobi.persistence.managers.ProcessManager;
-import dubious.sub.goobi.helper.encryption.MD5;
 
 @PluginImplementation
 public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
@@ -72,7 +75,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
         return pluginname;
     }
 
-    @Override
+    
     public String getDescription() {
         return pluginname;
     }
@@ -134,7 +137,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
                     URL goobiContentServerUrl = new URL(contentServerUrl);
                     OutputStream fos = new FileOutputStream(deliveryFile);
 
-                    HttpClientHelper.getStreamFromUrl(goobiContentServerUrl.toString(), fos);
+                    HttpClientHelper.getStreamFromUrl(fos, goobiContentServerUrl.toString());
 
                     fos.close();
                     
@@ -173,15 +176,16 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
                 new File(ConfigurationHelper.getInstance().getTemporaryFolder() + System.currentTimeMillis() + md5.getMD5() + "_"
                         + process.getTitel() + ".zip");
 
+        List<Path> filenames = NIOFileUtils.listFiles(imagesFolderName, NIOFileUtils.DATA_FILTER);
         File imageFolder = new File(imagesFolderName);
-        File[] filenames = imageFolder.listFiles(Helper.dataFilter);
-        if ((filenames == null) || (filenames.length == 0)) {
-            return false;
-        }
+//        File[] filenames = imageFolder.listFiles(Helper.dataFilter);
+//        if ((filenames == null) || (filenames.length == 0)) {
+//            return false;
+//        }
         File destFile =
                 new File(ConfigPlugins.getPluginConfig(this).getString("destinationFolder", "/opt/digiverso/pdfexport/"), compressedFile.getName());
 
-        logger.debug("Found " + filenames.length + " files.");
+        logger.debug("Found " + filenames.size() + " files.");
 
         byte[] origArchiveChecksum = null;
         try {
@@ -203,7 +207,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
             return false;
         }
 
-        if (ArchiveUtils.validateZip(compressedFile, true, imageFolder, filenames.length)) {
+        if (ArchiveUtils.validateZip(compressedFile, true, imageFolder, filenames.size())) {
             logger.info("Zip archive for " + process.getTitel() + " is valid");
         } else {
             logger.error(process.getTitel() + ": " + "Zip archive for " + process.getTitel() + " is corrupted. Aborting.");
