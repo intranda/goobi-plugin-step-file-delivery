@@ -117,7 +117,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
 
            
             try {
-                imagesFolderName = process.getImagesDirectory() + "pimped_pdf";
+                imagesFolderName = process.getImagesDirectory() + "customer";
                 File pdffolder = new File(imagesFolderName);
                 if (!pdffolder.exists() && !pdffolder.mkdir()) {
                     createMessages(Helper.getTranslation(process.getTitel() + ": delivery failed, pdf folder is missing."), null);
@@ -156,7 +156,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
 
         } else {
             try {
-                imagesFolderName = process.getImagesTifDirectory(false);
+                imagesFolderName = process.getImagesDirectory() + "customer";
             } catch (SwapException e) {
                 createMessages(process.getTitel() + ": " + Helper.getTranslation("PluginErrorInvalidMetadata"), e);
                 return false;
