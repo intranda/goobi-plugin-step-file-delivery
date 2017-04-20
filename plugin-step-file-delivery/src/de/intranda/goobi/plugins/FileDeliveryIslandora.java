@@ -115,7 +115,7 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
         if (format.equalsIgnoreCase("PDF")) {
 
             try {
-                imagesFolderName = process.getImagesDirectory() + "customer";
+                imagesFolderName = process.getImagesDirectory() + "customer_tif";
                 File pdffolder = new File(imagesFolderName);
                 if (!pdffolder.exists() && !pdffolder.mkdir()) {
                     createMessages(Helper.getTranslation(process.getTitel() + ": delivery failed, pdf folder is missing."), null);
