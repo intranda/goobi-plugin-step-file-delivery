@@ -152,7 +152,7 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
 
         } else {
             try {
-                imagesFolderName = process.getImagesDirectory() + "customer";
+                imagesFolderName = process.getImagesDirectory() + "customer_tif";
             } catch (SwapException e) {
                 createMessages(process.getTitel() + ": " + Helper.getTranslation("PluginErrorInvalidMetadata"), e);
                 return false;
