@@ -31,7 +31,7 @@ import javax.mail.internet.MimeMultipart;
 import net.xeoh.plugins.base.annotations.PluginImplementation;
 
 import org.apache.log4j.Logger;
-import org.goobi.production.cli.helper.WikiFieldHelper;
+import org.goobi.production.enums.LogType;
 import org.goobi.production.enums.PluginGuiType;
 import org.goobi.production.enums.PluginType;
 import org.goobi.production.enums.StepReturnValue;
@@ -40,6 +40,7 @@ import org.goobi.production.plugin.interfaces.IStepPlugin;
 
 import de.intranda.goobi.plugins.utils.ArchiveUtils;
 
+import org.goobi.beans.LogEntry;
 import org.goobi.beans.Process;
 import org.goobi.beans.Processproperty;
 import org.goobi.beans.Step;
@@ -310,15 +311,20 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
 
     private void createMessages(String message, Exception e) {
         if (e != null) {
-            Helper.setFehlerMeldung(message, e);
-            ProcessManager.addLogfile(WikiFieldHelper.getWikiMessage(process.getWikifield(), "error", message), process.getId());
             logger.error(message, e);
+            Helper.setFehlerMeldung(message, e);
         } else {
             Helper.setFehlerMeldung(message);
-            ProcessManager.addLogfile(WikiFieldHelper.getWikiMessage(process.getWikifield(), "error", message), process.getId());
             logger.error(message);
         }
 
+        LogEntry logEntry = new LogEntry();
+        logEntry.setContent(message);
+        logEntry.setCreationDate(new Date());
+        logEntry.setProcessId(process.getId());
+        logEntry.setType(LogType.ERROR);
+        logEntry.setUserName("webapi");
+        ProcessManager.saveLogEntry(logEntry);
     }
 
     public void postMail(String recipients[], String downloadUrl) throws MessagingException, UnsupportedEncodingException {

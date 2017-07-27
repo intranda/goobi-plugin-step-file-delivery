@@ -1,19 +1,16 @@
 package de.intranda.goobi.plugins;
 
-import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Collections;
+
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -31,7 +28,7 @@ import javax.mail.internet.MimeMultipart;
 import net.xeoh.plugins.base.annotations.PluginImplementation;
 
 import org.apache.log4j.Logger;
-import org.goobi.production.cli.helper.WikiFieldHelper;
+import org.goobi.production.enums.LogType;
 import org.goobi.production.enums.PluginGuiType;
 import org.goobi.production.enums.PluginType;
 import org.goobi.production.enums.StepReturnValue;
@@ -40,6 +37,7 @@ import org.goobi.production.plugin.interfaces.IStepPlugin;
 
 import de.intranda.goobi.plugins.utils.ArchiveUtils;
 
+import org.goobi.beans.LogEntry;
 import org.goobi.beans.Process;
 import org.goobi.beans.Processproperty;
 import org.goobi.beans.Step;
@@ -305,15 +303,20 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
 
     private void createMessages(String message, Exception e) {
         if (e != null) {
-            Helper.setFehlerMeldung(message, e);
-            ProcessManager.addLogfile(WikiFieldHelper.getWikiMessage(process.getWikifield(), "error", message), process.getId());
             logger.error(message, e);
+            Helper.setFehlerMeldung(message, e);
         } else {
             Helper.setFehlerMeldung(message);
-            ProcessManager.addLogfile(WikiFieldHelper.getWikiMessage(process.getWikifield(), "error", message), process.getId());
             logger.error(message);
         }
 
+        LogEntry logEntry = new LogEntry();
+        logEntry.setContent(message);
+        logEntry.setCreationDate(new Date());
+        logEntry.setProcessId(process.getId());
+        logEntry.setType(LogType.ERROR);
+        logEntry.setUserName("webapi");
+        ProcessManager.saveLogEntry(logEntry);
     }
 
     public void postMail(String recipients[], String downloadUrl) throws MessagingException, UnsupportedEncodingException {
