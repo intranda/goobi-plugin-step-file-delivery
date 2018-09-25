@@ -23,10 +23,12 @@ import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMultipart;
 
-import net.xeoh.plugins.base.annotations.PluginImplementation;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
+import org.goobi.beans.LogEntry;
+import org.goobi.beans.Process;
+import org.goobi.beans.Processproperty;
+import org.goobi.beans.Step;
 import org.goobi.production.enums.LogType;
 import org.goobi.production.enums.PluginGuiType;
 import org.goobi.production.enums.PluginType;
@@ -34,24 +36,20 @@ import org.goobi.production.enums.StepReturnValue;
 import org.goobi.production.plugin.interfaces.IPlugin;
 import org.goobi.production.plugin.interfaces.IStepPlugin;
 
-import ugh.exceptions.DocStructHasNoTypeException;
 import de.schlichtherle.io.DefaultArchiveDetector;
-
-import org.goobi.beans.LogEntry;
-import org.goobi.beans.Process;
-import org.goobi.beans.Processproperty;
-import org.goobi.beans.Step;
-
 import de.sub.goobi.config.ConfigPlugins;
 import de.sub.goobi.config.ConfigurationHelper;
 import de.sub.goobi.helper.Helper;
 import de.sub.goobi.helper.HttpClientHelper;
 import de.sub.goobi.helper.NIOFileUtils;
+import de.sub.goobi.helper.StorageProvider;
 import de.sub.goobi.helper.encryption.MD5;
 import de.sub.goobi.helper.exceptions.DAOException;
 import de.sub.goobi.helper.exceptions.SwapException;
 import de.sub.goobi.metadaten.MetadatenVerifizierung;
 import de.sub.goobi.persistence.managers.ProcessManager;
+import net.xeoh.plugins.base.annotations.PluginImplementation;
+import ugh.exceptions.DocStructHasNoTypeException;
 
 @PluginImplementation
 public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
@@ -177,7 +175,7 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
                 if (!imageFolder.exists() || !imageFolder.isDirectory()) {
                     return false;
                 }
-                List<String> filenames = NIOFileUtils.list(imagesFolderName, NIOFileUtils.DATA_FILTER);
+                List<String> filenames = StorageProvider.getInstance().list(imagesFolderName, NIOFileUtils.DATA_FILTER);
                 //                String[] filenames = imageFolder.list(Helper.dataFilter);
                 //                if ((filenames == null) || (filenames.length == 0)) {
                 //                    return false;

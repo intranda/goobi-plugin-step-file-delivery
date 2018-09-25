@@ -1,19 +1,15 @@
 package de.intranda.goobi.plugins;
 
-import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -28,9 +24,11 @@ import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMultipart;
 
-import net.xeoh.plugins.base.annotations.PluginImplementation;
-
 import org.apache.log4j.Logger;
+import org.goobi.beans.LogEntry;
+import org.goobi.beans.Process;
+import org.goobi.beans.Processproperty;
+import org.goobi.beans.Step;
 import org.goobi.production.enums.LogType;
 import org.goobi.production.enums.PluginGuiType;
 import org.goobi.production.enums.PluginType;
@@ -39,21 +37,17 @@ import org.goobi.production.plugin.interfaces.IPlugin;
 import org.goobi.production.plugin.interfaces.IStepPlugin;
 
 import de.intranda.goobi.plugins.utils.ArchiveUtils;
-
-import org.goobi.beans.LogEntry;
-import org.goobi.beans.Process;
-import org.goobi.beans.Processproperty;
-import org.goobi.beans.Step;
-
 import de.sub.goobi.config.ConfigPlugins;
 import de.sub.goobi.config.ConfigurationHelper;
 import de.sub.goobi.helper.Helper;
 import de.sub.goobi.helper.HttpClientHelper;
 import de.sub.goobi.helper.NIOFileUtils;
+import de.sub.goobi.helper.StorageProvider;
 import de.sub.goobi.helper.encryption.MD5;
 import de.sub.goobi.helper.exceptions.DAOException;
 import de.sub.goobi.helper.exceptions.SwapException;
 import de.sub.goobi.persistence.managers.ProcessManager;
+import net.xeoh.plugins.base.annotations.PluginImplementation;
 
 @PluginImplementation
 public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
@@ -76,7 +70,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
         return pluginname;
     }
 
-    
+
     public String getDescription() {
         return pluginname;
     }
@@ -116,7 +110,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
 
         if (format.equalsIgnoreCase("PDF")) {
 
-           
+
             try {
                 imagesFolderName = process.getImagesDirectory() + "pimped_pdf";
                 File pdffolder = new File(imagesFolderName);
@@ -141,8 +135,8 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
                     HttpClientHelper.getStreamFromUrl(fos, goobiContentServerUrl.toString());
 
                     fos.close();
-                    
-                    
+
+
                 }
 
             } catch (SwapException e1) {
@@ -177,12 +171,12 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
                 new File(ConfigurationHelper.getInstance().getTemporaryFolder() + System.currentTimeMillis() + md5.getMD5() + "_"
                         + process.getTitel() + ".zip");
 
-        List<Path> filenames = NIOFileUtils.listFiles(imagesFolderName, NIOFileUtils.DATA_FILTER);
+        List<Path> filenames = StorageProvider.getInstance().listFiles(imagesFolderName, NIOFileUtils.DATA_FILTER);
         File imageFolder = new File(imagesFolderName);
-//        File[] filenames = imageFolder.listFiles(Helper.dataFilter);
-//        if ((filenames == null) || (filenames.length == 0)) {
-//            return false;
-//        }
+        //        File[] filenames = imageFolder.listFiles(Helper.dataFilter);
+        //        if ((filenames == null) || (filenames.length == 0)) {
+        //            return false;
+        //        }
         File destFile =
                 new File(ConfigPlugins.getPluginConfig(this).getString("destinationFolder", "/opt/digiverso/pdfexport/"), compressedFile.getName());
 

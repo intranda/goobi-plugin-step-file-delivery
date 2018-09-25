@@ -10,7 +10,6 @@ import java.net.URL;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -25,9 +24,11 @@ import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMultipart;
 
-import net.xeoh.plugins.base.annotations.PluginImplementation;
-
 import org.apache.log4j.Logger;
+import org.goobi.beans.LogEntry;
+import org.goobi.beans.Process;
+import org.goobi.beans.Processproperty;
+import org.goobi.beans.Step;
 import org.goobi.production.enums.LogType;
 import org.goobi.production.enums.PluginGuiType;
 import org.goobi.production.enums.PluginType;
@@ -36,21 +37,17 @@ import org.goobi.production.plugin.interfaces.IPlugin;
 import org.goobi.production.plugin.interfaces.IStepPlugin;
 
 import de.intranda.goobi.plugins.utils.ArchiveUtils;
-
-import org.goobi.beans.LogEntry;
-import org.goobi.beans.Process;
-import org.goobi.beans.Processproperty;
-import org.goobi.beans.Step;
-
 import de.sub.goobi.config.ConfigPlugins;
 import de.sub.goobi.config.ConfigurationHelper;
 import de.sub.goobi.helper.Helper;
 import de.sub.goobi.helper.HttpClientHelper;
 import de.sub.goobi.helper.NIOFileUtils;
+import de.sub.goobi.helper.StorageProvider;
 import de.sub.goobi.helper.encryption.MD5;
 import de.sub.goobi.helper.exceptions.DAOException;
 import de.sub.goobi.helper.exceptions.SwapException;
 import de.sub.goobi.persistence.managers.ProcessManager;
+import net.xeoh.plugins.base.annotations.PluginImplementation;
 
 @PluginImplementation
 public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
@@ -169,7 +166,7 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
         File compressedFile = new File(ConfigurationHelper.getInstance().getTemporaryFolder() + System.currentTimeMillis() + md5.getMD5() + "_"
                 + process.getTitel() + ".zip");
 
-        List<Path> filenames = NIOFileUtils.listFiles(imagesFolderName, NIOFileUtils.DATA_FILTER);
+        List<Path> filenames = StorageProvider.getInstance().listFiles(imagesFolderName, NIOFileUtils.DATA_FILTER);
         File imageFolder = new File(imagesFolderName);
         //        File[] filenames = imageFolder.listFiles(Helper.dataFilter);
         //        if ((filenames == null) || (filenames.length == 0)) {
