@@ -24,6 +24,7 @@ import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMultipart;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 import org.goobi.beans.LogEntry;
 import org.goobi.beans.Process;
@@ -93,13 +94,13 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
             }
         }
         if (mailAddress == null || mailAddress.length() == 0) {
-            createMessages(Helper.getTranslation(process.getTitel() + ": delivery failed, email address is missing or empty."), null);
+            createMessages(Helper.getTranslation(process.getTitel() + ": delivery failed, email address is missing or empty."), null, null);
 
             return false;
         }
 
         if (format == null || format.isEmpty()) {
-            createMessages(Helper.getTranslation(process.getTitel() + ": delivery failed, format is missing or empty."), null);
+            createMessages(Helper.getTranslation(process.getTitel() + ": delivery failed, format is missing or empty."), null, null);
             return false;
         }
 
@@ -113,7 +114,7 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
                 imagesFolderName = process.getImagesDirectory() + "customer_tif";
                 File pdffolder = new File(imagesFolderName);
                 if (!pdffolder.exists() && !pdffolder.mkdir()) {
-                    createMessages(Helper.getTranslation(process.getTitel() + ": delivery failed, pdf folder is missing."), null);
+                    createMessages(Helper.getTranslation(process.getTitel() + ": delivery failed, pdf folder is missing."), null, null);
                     return false;
                 }
                 File[] listOfFiles = pdffolder.listFiles(pdffilter);
@@ -149,16 +150,16 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
             try {
                 imagesFolderName = process.getImagesDirectory() + "customer_tif";
             } catch (SwapException e) {
-                createMessages(process.getTitel() + ": " + Helper.getTranslation("PluginErrorInvalidMetadata"), e);
+                createMessages(process.getTitel() + ": " + Helper.getTranslation("PluginErrorInvalidMetadata"), e, null);
                 return false;
             } catch (DAOException e) {
-                createMessages(process.getTitel() + ": " + Helper.getTranslation("PluginErrorInvalidMetadata"), e);
+                createMessages(process.getTitel() + ": " + Helper.getTranslation("PluginErrorInvalidMetadata"), e, null);
                 return false;
             } catch (IOException e) {
-                createMessages(process.getTitel() + ": " + Helper.getTranslation("PluginErrorIOError"), e);
+                createMessages(process.getTitel() + ": " + Helper.getTranslation("PluginErrorIOError"), e, null);
                 return false;
             } catch (InterruptedException e) {
-                createMessages(process.getTitel() + ": " + Helper.getTranslation("PluginErrorIOError"), e);
+                createMessages(process.getTitel() + ": " + Helper.getTranslation("PluginErrorIOError"), e, null);
                 return false;
             }
         }
@@ -181,7 +182,7 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
         try {
             origArchiveChecksum = ArchiveUtils.zipFiles(filenames, compressedFile);
         } catch (IOException e) {
-            logger.error("Failed to zip files to archive for " + process.getTitel() + ". Aborting.");
+            createMessages("Failed to zip files to archive for " + process.getTitel() + ". Aborting.", e, compressedFile);
             return false;
         }
 
@@ -190,17 +191,19 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
         try {
             origArchiveAfterZipChecksum = ArchiveUtils.createChecksum(compressedFile);
         } catch (NoSuchAlgorithmException e) {
-            logger.error(process.getTitel() + ": " + "Failed to validate zip archive: " + e.toString() + ". Aborting.");
+            createMessages("Failed to zip files to archive for " + process.getTitel() + ". Aborting.", e, compressedFile);
+
             return false;
         } catch (IOException e) {
-            logger.error(process.getTitel() + ": " + "Failed to validate zip archive: " + e.toString() + ". Aborting.");
+            createMessages("Failed to zip files to archive for " + process.getTitel() + ". Aborting.", e, compressedFile);
+
             return false;
         }
 
         if (ArchiveUtils.validateZip(compressedFile, true, imageFolder, filenames.size())) {
             logger.info("Zip archive for " + process.getTitel() + " is valid");
         } else {
-            logger.error(process.getTitel() + ": " + "Zip archive for " + process.getTitel() + " is corrupted. Aborting.");
+            createMessages("Failed to zip files to archive for " + process.getTitel() + ". Aborting.", null, compressedFile);
             return false;
         }
         // ////////Done validating archive
@@ -211,14 +214,16 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
             ArchiveUtils.copyFile(compressedFile, destFile);
             // validation
             if (!MessageDigest.isEqual(origArchiveAfterZipChecksum, ArchiveUtils.createChecksum(destFile))) {
-                logger.error(process.getTitel() + ": " + "Error copying archive file to archive: Copy is not valid. Aborting.");
+                createMessages(process.getTitel() + ": " + "Error copying archive file to archive: Copy is not valid. Aborting.", null,
+                        compressedFile);
                 return false;
             }
         } catch (IOException e) {
-            logger.error(process.getTitel() + ": " + "Error validating copied archive. Aborting.");
+            createMessages(process.getTitel() + ": " + "Error validating copied archive. Aborting.", e, compressedFile);
+
             return false;
         } catch (NoSuchAlgorithmException e) {
-            logger.error(process.getTitel() + ": " + "Error validating copied archive. Aborting.");
+            createMessages(process.getTitel() + ": " + "Error validating copied archive. Aborting.", e, compressedFile);
             return false;
         }
         logger.info("Zip archive copied to " + destFile.getAbsolutePath() + " and found to be valid.");
@@ -251,7 +256,7 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
         try {
             ProcessManager.saveProcess(process);
         } catch (DAOException e) {
-            createMessages(process.getTitel() + ": " + Helper.getTranslation("fehlerNichtSpeicherbar"), e);
+            createMessages(process.getTitel() + ": " + Helper.getTranslation("fehlerNichtSpeicherbar"), e, compressedFile);
             return false;
         }
 
@@ -261,13 +266,15 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
         try {
             postMail(mail, downloadUrl);
         } catch (UnsupportedEncodingException e) {
-            createMessages("PluginErrorMailError", e);
+            createMessages("PluginErrorMailError", e, compressedFile);
             return false;
         } catch (MessagingException e) {
-            createMessages("PluginErrorMailError", e);
+            createMessages("PluginErrorMailError", e, compressedFile);
             return false;
         }
-
+        if (compressedFile != null && compressedFile.exists()) {
+            FileUtils.deleteQuietly(compressedFile);
+        }
         return true;
     }
 
@@ -298,7 +305,7 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
         return PluginGuiType.NONE;
     }
 
-    private void createMessages(String message, Exception e) {
+    private void createMessages(String message, Exception e, File tempFile) {
         if (e != null) {
             logger.error(message, e);
             Helper.setFehlerMeldung(message, e);
@@ -314,6 +321,11 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
         logEntry.setType(LogType.ERROR);
         logEntry.setUserName("webapi");
         ProcessManager.saveLogEntry(logEntry);
+
+        if (tempFile != null && tempFile.exists()) {
+            FileUtils.deleteQuietly(tempFile);
+        }
+
     }
 
     public void postMail(String recipients[], String downloadUrl) throws MessagingException, UnsupportedEncodingException {
