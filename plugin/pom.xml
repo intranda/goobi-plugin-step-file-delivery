@@ -5,7 +5,8 @@
 	<version>1.0.0</version>
 	<properties>
 		<jar.name>plugin_intranda_step_file-delivery</jar.name>
-		<dest.folder>/opt/digiverso/goobi/plugins/step/</dest.folder>
+        <dest.folder>/opt/digiverso/goobi/plugins/step/</dest.folder>
+        <goobi.version>21.10</goobi.version>
 	</properties>
 	<distributionManagement>
 		<repository>
@@ -82,6 +83,7 @@
                                 <Implementation-Version>${project.version}</Implementation-Version>
                                 <Implementation-SCM-Revision>${buildNumber}</Implementation-SCM-Revision>
                                 <Implementation-SCM-Branch>${scmBranch}</Implementation-SCM-Branch>
+                                <Goobi-Version>${goobi.version}</Goobi-Version>
                             </manifestEntries>
                         </manifestSection>
                     </manifestSections>
@@ -94,7 +96,7 @@
         <dependency>
             <groupId>de.intranda.goobi.workflow</groupId>
             <artifactId>goobi-core-jar</artifactId>
-            <version>21.06.3</version>
+            <version>${goobi.version}</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.projectlombok/lombok -->
         <dependency>
