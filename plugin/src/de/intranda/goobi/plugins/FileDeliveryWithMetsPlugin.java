@@ -126,7 +126,7 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
                 //                FilenameFilter filter = tiffilter;
                 File imagesDir = new File(process.getImagesTifDirectory(true));
                 File[] meta = imagesDir.listFiles(tiffilter);
-                ArrayList<String> filenames = new ArrayList<String>();
+                ArrayList<String> filenames = new ArrayList<>();
                 for (File data : meta) {
                     String file = "";
                     file += data.toURI().toURL();
@@ -181,7 +181,7 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
                 //                    return false;
                 //                }
 
-                List<de.schlichtherle.io.File> images = new ArrayList<de.schlichtherle.io.File>();
+                List<de.schlichtherle.io.File> images = new ArrayList<>();
                 for (String imagefileName : filenames) {
                     de.schlichtherle.io.File imagefile = new de.schlichtherle.io.File(imageFolder, imagefileName);
                     images.add(new de.schlichtherle.io.File(imagefile));
@@ -363,17 +363,14 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
         }
         msg.setRecipients(Message.RecipientType.TO, addressTo);
 
-        // Optional : You can also set your custom headers in the Email if you
-        // Want
-        // msg.addHeader("MyHeaderName", "myHeaderValue");
+        // create mail
+        MimeMultipart multipart = new MimeMultipart();
 
         msg.setSubject(MAIL_SUBJECT);
-
-        MimeBodyPart messagePart = new MimeBodyPart();
-        messagePart.setText(MAIL_TEXT, "utf-8");
-        messagePart.setHeader("Content-Type", "text/plain; charset=\"utf-8\"");
-        MimeMultipart multipart = new MimeMultipart();
-        multipart.addBodyPart(messagePart);
+        MimeBodyPart messageHtmlPart = new MimeBodyPart();
+        messageHtmlPart.setText(MAIL_TEXT, "utf-8");
+        messageHtmlPart.setHeader("Content-Type", "text/html; charset=\"utf-8\"");
+        multipart.addBodyPart(messageHtmlPart);
 
         msg.setContent(multipart);
         msg.setSentDate(new Date());

@@ -24,6 +24,7 @@ import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMultipart;
 
+import org.apache.commons.configuration.XMLConfiguration;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 import org.goobi.beans.LogEntry;
@@ -124,8 +125,8 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
 
                     // - PDF erzeugen
 
-                    String contentServerUrl = "http://localhost:8080/goobi" + "/cs/cs?action=pdf&resolution=150&convertToGrayscale&folder=" + process
-                            .getImagesTifDirectory(true) + "&targetFileName=" + process.getTitel() + ".pdf";
+                    String contentServerUrl = "http://localhost:8080/goobi" + "/cs/cs?action=pdf&resolution=150&convertToGrayscale&folder="
+                            + process.getImagesTifDirectory(true) + "&targetFileName=" + process.getTitel() + ".pdf";
 
                     URL goobiContentServerUrl = new URL(contentServerUrl);
                     OutputStream fos = new FileOutputStream(deliveryFile);
@@ -173,8 +174,8 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
         //        if ((filenames == null) || (filenames.length == 0)) {
         //            return false;
         //        }
-        File destFile = new File(ConfigPlugins.getPluginConfig(this).getString("destinationFolder", "/opt/digiverso/pdfexport/"), compressedFile
-                .getName());
+        File destFile =
+                new File(ConfigPlugins.getPluginConfig(this).getString("destinationFolder", "/opt/digiverso/pdfexport/"), compressedFile.getName());
 
         logger.debug("Found " + filenames.size() + " files.");
 
@@ -329,18 +330,19 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
     }
 
     public void postMail(String recipients[], String downloadUrl) throws MessagingException, UnsupportedEncodingException {
-        boolean debug = false;
 
-        String SMTP_SERVER = ConfigPlugins.getPluginConfig(this).getString("SMTP_SERVER", "mail.intranda.com");
-        String SMTP_USER = ConfigPlugins.getPluginConfig(this).getString("SMTP_USER", "TODO");
-        String SMTP_PASSWORD = ConfigPlugins.getPluginConfig(this).getString("SMTP_PASSWORD", "TODO");
-        String SMTP_USE_STARTTLS = ConfigPlugins.getPluginConfig(this).getString("SMTP_USE_STARTTLS", "0");
-        String SMTP_USE_SSL = ConfigPlugins.getPluginConfig(this).getString("SMTP_USE_SSL", "1");
-        String SENDER_ADDRESS = ConfigPlugins.getPluginConfig(this).getString("SENDER_ADDRESS", "TODO");
+        @SuppressWarnings("deprecation")
+        XMLConfiguration config = ConfigPlugins.getPluginConfig(this);
 
-        String MAIL_SUBJECT = ConfigPlugins.getPluginConfig(this).getString("MAIL_SUBJECT",
-                "Leiden University – Digitisation Order Special Collections University Library");
-        String MAIL_TEXT = ConfigPlugins.getPluginConfig(this).getString("MAIL_BODY", "{0}");
+        String SMTP_SERVER = config.getString("SMTP_SERVER", "mail.intranda.com");
+        String SMTP_USER = config.getString("SMTP_USER", "TODO");
+        String SMTP_PASSWORD = config.getString("SMTP_PASSWORD", "TODO");
+        String SMTP_USE_STARTTLS = config.getString("SMTP_USE_STARTTLS", "0");
+        String SMTP_USE_SSL = config.getString("SMTP_USE_SSL", "1");
+        String SENDER_ADDRESS = config.getString("SENDER_ADDRESS", "TODO");
+
+        String MAIL_SUBJECT = config.getString("MAIL_SUBJECT", "Leiden University – Digitisation Order Special Collections University Library");
+        String MAIL_TEXT = config.getString("MAIL_BODY", "{0}");
         MAIL_TEXT = MAIL_TEXT.replace("{0}", downloadUrl);
 
         // Set the host smtp address
@@ -369,7 +371,6 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
         }
 
         Session session = Session.getDefaultInstance(props, null);
-        session.setDebug(debug);
         Message msg = new MimeMessage(session);
 
         InternetAddress addressFrom = new InternetAddress(SENDER_ADDRESS);
@@ -380,17 +381,14 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
         }
         msg.setRecipients(Message.RecipientType.TO, addressTo);
 
-        // Optional : You can also set your custom headers in the Email if you
-        // Want
-        // msg.addHeader("MyHeaderName", "myHeaderValue");
+        // create mail
+        MimeMultipart multipart = new MimeMultipart();
 
         msg.setSubject(MAIL_SUBJECT);
-
-        MimeBodyPart messagePart = new MimeBodyPart();
-        messagePart.setText(MAIL_TEXT, "utf-8");
-        messagePart.setHeader("Content-Type", "text/plain; charset=\"utf-8\"");
-        MimeMultipart multipart = new MimeMultipart();
-        multipart.addBodyPart(messagePart);
+        MimeBodyPart messageHtmlPart = new MimeBodyPart();
+        messageHtmlPart.setText(MAIL_TEXT, "utf-8");
+        messageHtmlPart.setHeader("Content-Type", "text/html; charset=\"utf-8\"");
+        multipart.addBodyPart(messageHtmlPart);
 
         msg.setContent(multipart);
         msg.setSentDate(new Date());

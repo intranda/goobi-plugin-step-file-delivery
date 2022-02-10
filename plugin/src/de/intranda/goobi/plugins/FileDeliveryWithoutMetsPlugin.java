@@ -374,17 +374,14 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
         }
         msg.setRecipients(Message.RecipientType.TO, addressTo);
 
-        // Optional : You can also set your custom headers in the Email if you
-        // Want
-        // msg.addHeader("MyHeaderName", "myHeaderValue");
+        // create mail
+        MimeMultipart multipart = new MimeMultipart();
 
         msg.setSubject(MAIL_SUBJECT);
-
-        MimeBodyPart messagePart = new MimeBodyPart();
-        messagePart.setText(MAIL_TEXT, "utf-8");
-        messagePart.setHeader("Content-Type", "text/plain; charset=\"utf-8\"");
-        MimeMultipart multipart = new MimeMultipart();
-        multipart.addBodyPart(messagePart);
+        MimeBodyPart messageHtmlPart = new MimeBodyPart();
+        messageHtmlPart.setText(MAIL_TEXT, "utf-8");
+        messageHtmlPart.setHeader("Content-Type", "text/html; charset=\"utf-8\"");
+        multipart.addBodyPart(messageHtmlPart);
 
         msg.setContent(multipart);
         msg.setSentDate(new Date());
