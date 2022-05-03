@@ -232,8 +232,8 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
         //
         //        // - an anderen Ort kopieren
         //        String destination = ConfigPlugins.getPluginConfig(this).getString("destinationFolder", "/opt/digiverso/pdfexport/");
-        String donwloadServer = ConfigPlugins.getPluginConfig(this).getString("donwloadServer", "http://leiden01.intranda.com/goobi/");
-        String downloadUrl = donwloadServer + destFile.getName();
+        String downloadServer = ConfigPlugins.getPluginConfig(this).getString("downloadServer", "http://leiden01.intranda.com/goobi/");
+        String downloadUrl = downloadServer + destFile.getName();
 
         // - Name/Link als Property speichern
 

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config_plugin>
+	<contentServerUrl>http://localhost:8080/goobi/gcs/cs?action=pdf&amp;metsFile=file://</contentServerUrl>
+	<destinationFolder>/opt/digiverso/other/leiden01/delivery/</destinationFolder>
+	<downloadServer>https://leiden01-delivery.intranda.com/</downloadServer>
+	<SMTP_SERVER>mail.intranda.com</SMTP_SERVER>
+	<SMTP_USER></SMTP_USER>
+	<SMTP_PASSWORD></SMTP_PASSWORD>
+	<SMTP_USE_STARTTLS>1</SMTP_USE_STARTTLS>
+	<SMTP_USE_SSL>0</SMTP_USE_SSL>
+	<SENDER_ADDRESS></SENDER_ADDRESS>
+	<MAIL_SUBJECT>Leiden University - Digitisation Order Special Collections University Library</MAIL_SUBJECT>
+	<MAIL_BODY>
+Dear user,
+&lt;br /&gt;
+&lt;br /&gt;
+Your order has been sent to you.&lt;br /&gt;
+&lt;br /&gt;
+&lt;a href="{0}"&gt;Download file(s)&lt;/a&gt;
+&lt;br /&gt;&lt;br /&gt;
+The download link will expire in 14 days.&lt;br /&gt;
+&lt;br /&gt;
+Find more information on photographic orders and publication of images on our website: 
+  &lt;a href="https://www.library.universiteitleiden.nl/special-collections/using-special-collections/reproductions"&gt;Reproductions - Leiden Univeristy&lt;/a&gt;
+&lt;br /&gt;&lt;br /&gt;
+Kind regards,&lt;br /&gt;
+&lt;br /&gt;
+Special Collections Staff&lt;br /&gt;
+Leiden University Library
+	</MAIL_BODY>
+</config_plugin>
