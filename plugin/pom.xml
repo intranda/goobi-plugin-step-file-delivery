@@ -4,7 +4,7 @@
   <artifactId>file-delivery</artifactId>
   <version>1.0.0</version>
   <properties>
-    <jar.name>plugin_intranda_step_file-delivery</jar.name>
+    <jar.name>plugin_intranda_step_leiden_file_delivery</jar.name>
     <dest.folder>/opt/digiverso/goobi/plugins/step/</dest.folder>
     <goobi.version>22.03.1</goobi.version>
   </properties>
@@ -113,7 +113,7 @@
     </dependency>
   </dependencies>
   <scm>
-    <url>scm:git:ssh://git@gitea.intranda.com:goobi-workflow/goobi-plugin-step-altocorrection.git</url>
-    <connection>scm:git:ssh://git@gitea.intranda.com:goobi-workflow/goobi-plugin-step-altocorrection.git</connection>
+    <url>scm:git:ssh://git@gitea.intranda.com:goobi-workflow/goobi-plugin-step-leiden-file-delivery.git</url>
+    <connection>scm:git:ssh://git@gitea.intranda.com:goobi-workflow/goobi-plugin-step-leiden-file-delivery.git</connection>
   </scm>
 </project>
