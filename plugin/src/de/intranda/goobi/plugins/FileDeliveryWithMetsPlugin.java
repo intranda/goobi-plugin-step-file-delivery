@@ -43,7 +43,6 @@ import de.sub.goobi.helper.Helper;
 import de.sub.goobi.helper.HttpClientHelper;
 import de.sub.goobi.helper.NIOFileUtils;
 import de.sub.goobi.helper.StorageProvider;
-import de.sub.goobi.helper.encryption.MD5;
 import de.sub.goobi.helper.exceptions.DAOException;
 import de.sub.goobi.helper.exceptions.SwapException;
 import de.sub.goobi.metadaten.MetadatenVerifizierung;
@@ -99,7 +98,6 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
         }
 
         File deliveryFile = null;
-        MD5 md5 = new MD5(process.getTitel());
         if (format.equalsIgnoreCase("PDF")) {
 
             // TODO sicherstellen das filegroup PDF erzeugt und in im gcs für pdf eingestellt wurde
@@ -111,7 +109,7 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
             String tempfolder = ConfigurationHelper.getInstance().getTemporaryFolder();
 
             // - umbenennen in unique Namen
-            deliveryFile = new File(tempfolder, System.currentTimeMillis() + md5.getMD5() + "_" + process.getTitel() + ".pdf");
+            deliveryFile = new File(tempfolder, System.currentTimeMillis() + "_" + process.getTitel() + ".pdf");
             String metsfile = tempfolder + process.getTitel() + "_mets.xml";
             // - PDF erzeugen
 
@@ -154,20 +152,14 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
             } catch (SwapException e) {
                 createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
                 return false;
-            } catch (DAOException e) {
-                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-                return false;
             } catch (IOException e) {
-                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-                return false;
-            } catch (InterruptedException e) {
                 createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
                 return false;
             }
         } else {
             de.schlichtherle.io.File.setDefaultArchiveDetector(new DefaultArchiveDetector("tar.bz2|tar.gz|zip"));
-            de.schlichtherle.io.File zipFile = new de.schlichtherle.io.File(ConfigurationHelper.getInstance().getTemporaryFolder() + System
-                    .currentTimeMillis() + md5.getMD5() + "_" + process.getTitel() + ".zip");
+            de.schlichtherle.io.File zipFile = new de.schlichtherle.io.File(
+                    ConfigurationHelper.getInstance().getTemporaryFolder() + System.currentTimeMillis() + "_" + process.getTitel() + ".zip");
             try {
 
                 String imagesFolderName = process.getImagesTifDirectory(false);
@@ -198,13 +190,7 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
             } catch (SwapException e) {
                 createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
                 return false;
-            } catch (DAOException e) {
-                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-                return false;
             } catch (IOException e) {
-                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-                return false;
-            } catch (InterruptedException e) {
                 createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
                 return false;
             }
@@ -320,8 +306,8 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
         String SMTP_USE_SSL = ConfigPlugins.getPluginConfig(this).getString("SMTP_USE_SSL", "1");
         String SENDER_ADDRESS = ConfigPlugins.getPluginConfig(this).getString("SENDER_ADDRESS", "TODO");
 
-        String MAIL_SUBJECT = ConfigPlugins.getPluginConfig(this).getString("MAIL_SUBJECT",
-                "Leiden University – Digitisation Order Special Collections University Library");
+        String MAIL_SUBJECT = ConfigPlugins.getPluginConfig(this)
+                .getString("MAIL_SUBJECT", "Leiden University – Digitisation Order Special Collections University Library");
         String MAIL_TEXT = ConfigPlugins.getPluginConfig(this).getString("MAIL_BODY", "{0}");
         MAIL_TEXT = MAIL_TEXT.replace("{0}", downloadUrl);
 

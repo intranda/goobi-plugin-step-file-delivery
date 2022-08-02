@@ -43,7 +43,6 @@ import de.sub.goobi.helper.Helper;
 import de.sub.goobi.helper.HttpClientHelper;
 import de.sub.goobi.helper.NIOFileUtils;
 import de.sub.goobi.helper.StorageProvider;
-import de.sub.goobi.helper.encryption.MD5;
 import de.sub.goobi.helper.exceptions.DAOException;
 import de.sub.goobi.helper.exceptions.SwapException;
 import de.sub.goobi.persistence.managers.ProcessManager;
@@ -69,7 +68,6 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
     public String getTitle() {
         return pluginname;
     }
-
 
     public String getDescription() {
         return pluginname;
@@ -105,11 +103,10 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
         }
 
         File deliveryFile = null;
-        MD5 md5 = new MD5(process.getTitel());
+
         String imagesFolderName = "";
 
         if (format.equalsIgnoreCase("PDF")) {
-
 
             try {
                 imagesFolderName = process.getImagesDirectory() + "pimped_pdf";
@@ -125,9 +122,8 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
 
                     // - PDF erzeugen
 
-                    String contentServerUrl =
-                            "http://localhost:8080/goobi" + "/cs/cs?action=pdf&resolution=150&convertToGrayscale&folder="
-                                    + process.getImagesTifDirectory(true) + "&targetFileName=" + process.getTitel() + ".pdf";
+                    String contentServerUrl = "http://localhost:8080/goobi" + "/cs/cs?action=pdf&resolution=150&convertToGrayscale&folder="
+                            + process.getImagesTifDirectory(true) + "&targetFileName=" + process.getTitel() + ".pdf";
 
                     URL goobiContentServerUrl = new URL(contentServerUrl);
                     OutputStream fos = new FileOutputStream(deliveryFile);
@@ -136,17 +132,14 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
 
                     fos.close();
 
-
                 }
 
             } catch (SwapException e1) {
                 logger.error(process.getTitel() + ": " + e1);
-            } catch (DAOException e1) {
-                logger.error(process.getTitel() + ": " + e1);
+
             } catch (IOException e1) {
                 logger.error(process.getTitel() + ": " + e1);
-            } catch (InterruptedException e1) {
-                logger.error(process.getTitel() + ": " + e1);
+
             }
 
         } else {
@@ -155,21 +148,14 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
             } catch (SwapException e) {
                 createMessages(process.getTitel() + ": " + Helper.getTranslation("PluginErrorInvalidMetadata"), e);
                 return false;
-            } catch (DAOException e) {
-                createMessages(process.getTitel() + ": " + Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-                return false;
             } catch (IOException e) {
-                createMessages(process.getTitel() + ": " + Helper.getTranslation("PluginErrorIOError"), e);
-                return false;
-            } catch (InterruptedException e) {
                 createMessages(process.getTitel() + ": " + Helper.getTranslation("PluginErrorIOError"), e);
                 return false;
             }
         }
 
         File compressedFile =
-                new File(ConfigurationHelper.getInstance().getTemporaryFolder() + System.currentTimeMillis() + md5.getMD5() + "_"
-                        + process.getTitel() + ".zip");
+                new File(ConfigurationHelper.getInstance().getTemporaryFolder() + System.currentTimeMillis() + "_" + process.getTitel() + ".zip");
 
         List<Path> filenames = StorageProvider.getInstance().listFiles(imagesFolderName, NIOFileUtils.DATA_FILTER);
         File imageFolder = new File(imagesFolderName);
@@ -331,9 +317,8 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
         String SMTP_USE_SSL = ConfigPlugins.getPluginConfig(this).getString("SMTP_USE_SSL", "1");
         String SENDER_ADDRESS = ConfigPlugins.getPluginConfig(this).getString("SENDER_ADDRESS", "TODO");
 
-        String MAIL_SUBJECT =
-                ConfigPlugins.getPluginConfig(this).getString("MAIL_SUBJECT",
-                        "Leiden University – Digitisation Order Special Collections University Library");
+        String MAIL_SUBJECT = ConfigPlugins.getPluginConfig(this)
+                .getString("MAIL_SUBJECT", "Leiden University – Digitisation Order Special Collections University Library");
         String MAIL_TEXT = ConfigPlugins.getPluginConfig(this).getString("MAIL_BODY", "{0}");
         MAIL_TEXT = MAIL_TEXT.replace("{0}", downloadUrl);
 

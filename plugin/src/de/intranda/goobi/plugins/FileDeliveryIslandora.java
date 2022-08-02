@@ -45,7 +45,6 @@ import de.sub.goobi.helper.Helper;
 import de.sub.goobi.helper.HttpClientHelper;
 import de.sub.goobi.helper.NIOFileUtils;
 import de.sub.goobi.helper.StorageProvider;
-import de.sub.goobi.helper.encryption.MD5;
 import de.sub.goobi.helper.exceptions.DAOException;
 import de.sub.goobi.helper.exceptions.SwapException;
 import de.sub.goobi.persistence.managers.ProcessManager;
@@ -106,7 +105,6 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
         }
 
         File deliveryFile = null;
-        MD5 md5 = new MD5(process.getTitel());
         String imagesFolderName = "";
 
         if (format.equalsIgnoreCase("PDF")) {
@@ -139,11 +137,7 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
 
             } catch (SwapException e1) {
                 logger.error(process.getTitel() + ": " + e1);
-            } catch (DAOException e1) {
-                logger.error(process.getTitel() + ": " + e1);
             } catch (IOException e1) {
-                logger.error(process.getTitel() + ": " + e1);
-            } catch (InterruptedException e1) {
                 logger.error(process.getTitel() + ": " + e1);
             }
 
@@ -153,20 +147,14 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
             } catch (SwapException e) {
                 createMessages(process.getTitel() + ": " + Helper.getTranslation("PluginErrorInvalidMetadata"), e, null);
                 return false;
-            } catch (DAOException e) {
-                createMessages(process.getTitel() + ": " + Helper.getTranslation("PluginErrorInvalidMetadata"), e, null);
-                return false;
             } catch (IOException e) {
-                createMessages(process.getTitel() + ": " + Helper.getTranslation("PluginErrorIOError"), e, null);
-                return false;
-            } catch (InterruptedException e) {
                 createMessages(process.getTitel() + ": " + Helper.getTranslation("PluginErrorIOError"), e, null);
                 return false;
             }
         }
 
-        File compressedFile = new File(ConfigurationHelper.getInstance().getTemporaryFolder() + System.currentTimeMillis() + md5.getMD5() + "_"
-                + process.getTitel() + ".zip");
+        File compressedFile =
+                new File(ConfigurationHelper.getInstance().getTemporaryFolder() + System.currentTimeMillis() + "_" + process.getTitel() + ".zip");
 
         List<Path> filenames = StorageProvider.getInstance().listFiles(imagesFolderName, NIOFileUtils.DATA_FILTER);
         File imageFolder = new File(imagesFolderName);
