@@ -25,7 +25,6 @@ import javax.mail.internet.MimeMultipart;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
-import org.goobi.beans.LogEntry;
 import org.goobi.beans.Process;
 import org.goobi.beans.Processproperty;
 import org.goobi.beans.Step;
@@ -286,14 +285,7 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
             Helper.setFehlerMeldung(message);
             logger.error(message);
         }
-
-        LogEntry logEntry = new LogEntry();
-        logEntry.setContent(message);
-        logEntry.setCreationDate(new Date());
-        logEntry.setProcessId(process.getId());
-        logEntry.setType(LogType.ERROR);
-        logEntry.setUserName("webapi");
-        ProcessManager.saveLogEntry(logEntry);
+        Helper.addMessageToProcessJournal(process.getId(), LogType.ERROR, message, "automatic");
     }
 
     public void postMail(String recipients[], String downloadUrl) throws MessagingException, UnsupportedEncodingException {
