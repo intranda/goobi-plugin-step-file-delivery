@@ -121,8 +121,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
 
                     // - PDF erzeugen
 
-                    String contentServerUrl = "http://localhost:8080/goobi" + "/cs/cs?action=pdf&resolution=150&convertToGrayscale&folder="
-                            + process.getImagesTifDirectory(true) + "&targetFileName=" + process.getTitel() + ".pdf";
+                    String contentServerUrl = "http://localhost:8080/goobi/api/process/pdf/" + process.getId() + "/full.pdf?resolution=150&convertToGrayscale&imageSource=file://" + imagesFolderName + "&targetFileName=" + process.getTitel() + ".pdf";
 
                     URL goobiContentServerUrl = new URL(contentServerUrl);
                     OutputStream fos = new FileOutputStream(deliveryFile);
