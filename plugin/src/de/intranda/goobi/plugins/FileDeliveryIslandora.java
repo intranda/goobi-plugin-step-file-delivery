@@ -26,7 +26,6 @@ import javax.mail.internet.MimeMultipart;
 
 import org.apache.commons.configuration.XMLConfiguration;
 import org.apache.commons.io.FileUtils;
-import org.apache.log4j.Logger;
 import org.goobi.beans.Process;
 import org.goobi.beans.Processproperty;
 import org.goobi.beans.Step;
@@ -44,17 +43,23 @@ import de.sub.goobi.helper.Helper;
 import de.sub.goobi.helper.HttpClientHelper;
 import de.sub.goobi.helper.NIOFileUtils;
 import de.sub.goobi.helper.StorageProvider;
+import de.sub.goobi.helper.VariableReplacer;
 import de.sub.goobi.helper.exceptions.DAOException;
 import de.sub.goobi.helper.exceptions.SwapException;
 import de.sub.goobi.persistence.managers.ProcessManager;
+import lombok.extern.log4j.Log4j2;
 import net.xeoh.plugins.base.annotations.PluginImplementation;
 
+@Log4j2
 @PluginImplementation
 public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
-    private static final Logger logger = Logger.getLogger(FileDeliveryIslandora.class);
+
+    private static final long serialVersionUID = -7680783972841493378L;
+
+
 
     private String pluginname = "FileDeliveryIslandora";
-    // private Schritt step;
+    private Step step;
     private Process process;
     private String returnPath;
 
@@ -76,7 +81,7 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
 
     @Override
     public void initialize(Step step, String returnPath) {
-        // this.step = step;
+        this.step = step;
         this.process = step.getProzess();
         this.returnPath = returnPath;
     }
@@ -134,9 +139,9 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
                 }
 
             } catch (SwapException e1) {
-                logger.error(process.getTitel() + ": " + e1);
+                log.error(process.getTitel() + ": " + e1);
             } catch (IOException e1) {
-                logger.error(process.getTitel() + ": " + e1);
+                log.error(process.getTitel() + ": " + e1);
             }
 
         } else {
@@ -163,7 +168,7 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
         File destFile =
                 new File(ConfigPlugins.getPluginConfig(this).getString("destinationFolder", "/opt/digiverso/pdfexport/"), compressedFile.getName());
 
-        logger.debug("Found " + filenames.size() + " files.");
+        log.debug("Found " + filenames.size() + " files.");
 
         byte[] origArchiveChecksum = null;
         try {
@@ -173,7 +178,7 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
             return false;
         }
 
-        logger.info("Validating zip-archive");
+        log.info("Validating zip-archive");
         byte[] origArchiveAfterZipChecksum = null;
         try {
             origArchiveAfterZipChecksum = ArchiveUtils.createChecksum(compressedFile);
@@ -188,7 +193,7 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
         }
 
         if (ArchiveUtils.validateZip(compressedFile, true, imageFolder, filenames.size())) {
-            logger.info("Zip archive for " + process.getTitel() + " is valid");
+            log.info("Zip archive for " + process.getTitel() + " is valid");
         } else {
             createMessages("Failed to zip files to archive for " + process.getTitel() + ". Aborting.", null, compressedFile);
             return false;
@@ -196,7 +201,7 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
         // ////////Done validating archive
 
         // ////////copying archive file and validating copy
-        logger.info("Copying zip archive for " + process.getTitel() + " to archive");
+        log.info("Copying zip archive for " + process.getTitel() + " to archive");
         try {
             ArchiveUtils.copyFile(compressedFile, destFile);
             // validation
@@ -213,7 +218,7 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
             createMessages(process.getTitel() + ": " + "Error validating copied archive. Aborting.", e, compressedFile);
             return false;
         }
-        logger.info("Zip archive copied to " + destFile.getAbsolutePath() + " and found to be valid.");
+        log.info("Zip archive copied to " + destFile.getAbsolutePath() + " and found to be valid.");
 
         //
         //        // - an anderen Ort kopieren
@@ -294,11 +299,11 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
 
     private void createMessages(String message, Exception e, File tempFile) {
         if (e != null) {
-            logger.error(message, e);
+            log.error(message, e);
             Helper.setFehlerMeldung(message, e);
         } else {
             Helper.setFehlerMeldung(message);
-            logger.error(message);
+            log.error(message);
         }
         Helper.addMessageToProcessJournal(process.getId(), LogType.ERROR, message, "automatic");
 
@@ -323,6 +328,9 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
         String MAIL_SUBJECT = config.getString("MAIL_SUBJECT", "Leiden University – Digitisation Order Special Collections University Library");
         String MAIL_TEXT = config.getString("MAIL_BODY", "{0}");
         MAIL_TEXT = MAIL_TEXT.replace("{0}", downloadUrl);
+
+        VariableReplacer replacer = new VariableReplacer(null, null, process, step);
+        MAIL_TEXT = replacer.replace(MAIL_TEXT);
 
         // Set the host smtp address
         Properties props = new Properties();

@@ -24,7 +24,6 @@ import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMultipart;
 
-import org.apache.log4j.Logger;
 import org.goobi.beans.Process;
 import org.goobi.beans.Processproperty;
 import org.goobi.beans.Step;
@@ -42,17 +41,19 @@ import de.sub.goobi.helper.Helper;
 import de.sub.goobi.helper.HttpClientHelper;
 import de.sub.goobi.helper.NIOFileUtils;
 import de.sub.goobi.helper.StorageProvider;
+import de.sub.goobi.helper.VariableReplacer;
 import de.sub.goobi.helper.exceptions.DAOException;
 import de.sub.goobi.helper.exceptions.SwapException;
 import de.sub.goobi.persistence.managers.ProcessManager;
+import lombok.extern.log4j.Log4j2;
 import net.xeoh.plugins.base.annotations.PluginImplementation;
 
+@Log4j2
 @PluginImplementation
 public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
-    private static final Logger logger = Logger.getLogger(FileDeliveryWithoutMetsPlugin.class);
 
     private String pluginname = "FileDeliveryWithoutMets";
-    // private Schritt step;
+    private Step step;
     private Process process;
     private String returnPath;
 
@@ -74,7 +75,7 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
 
     @Override
     public void initialize(Step step, String returnPath) {
-        // this.step = step;
+        this.step = step;
         this.process = step.getProzess();
         this.returnPath = returnPath;
     }
@@ -133,10 +134,10 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
                 }
 
             } catch (SwapException e1) {
-                logger.error(process.getTitel() + ": " + e1);
+                log.error(process.getTitel() + ": " + e1);
 
             } catch (IOException e1) {
-                logger.error(process.getTitel() + ": " + e1);
+                log.error(process.getTitel() + ": " + e1);
 
             }
 
@@ -164,53 +165,53 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
         File destFile =
                 new File(ConfigPlugins.getPluginConfig(this).getString("destinationFolder", "/opt/digiverso/pdfexport/"), compressedFile.getName());
 
-        logger.debug("Found " + filenames.size() + " files.");
+        log.debug("Found " + filenames.size() + " files.");
 
         byte[] origArchiveChecksum = null;
         try {
             origArchiveChecksum = ArchiveUtils.zipFiles(filenames, compressedFile);
         } catch (IOException e) {
-            logger.error("Failed to zip files to archive for " + process.getTitel() + ". Aborting.");
+            log.error("Failed to zip files to archive for " + process.getTitel() + ". Aborting.");
             return false;
         }
 
-        logger.info("Validating zip-archive");
+        log.info("Validating zip-archive");
         byte[] origArchiveAfterZipChecksum = null;
         try {
             origArchiveAfterZipChecksum = ArchiveUtils.createChecksum(compressedFile);
         } catch (NoSuchAlgorithmException e) {
-            logger.error(process.getTitel() + ": " + "Failed to validate zip archive: " + e.toString() + ". Aborting.");
+            log.error(process.getTitel() + ": " + "Failed to validate zip archive: " + e.toString() + ". Aborting.");
             return false;
         } catch (IOException e) {
-            logger.error(process.getTitel() + ": " + "Failed to validate zip archive: " + e.toString() + ". Aborting.");
+            log.error(process.getTitel() + ": " + "Failed to validate zip archive: " + e.toString() + ". Aborting.");
             return false;
         }
 
         if (ArchiveUtils.validateZip(compressedFile, true, imageFolder, filenames.size())) {
-            logger.info("Zip archive for " + process.getTitel() + " is valid");
+            log.info("Zip archive for " + process.getTitel() + " is valid");
         } else {
-            logger.error(process.getTitel() + ": " + "Zip archive for " + process.getTitel() + " is corrupted. Aborting.");
+            log.error(process.getTitel() + ": " + "Zip archive for " + process.getTitel() + " is corrupted. Aborting.");
             return false;
         }
         // ////////Done validating archive
 
         // ////////copying archive file and validating copy
-        logger.info("Copying zip archive for " + process.getTitel() + " to archive");
+        log.info("Copying zip archive for " + process.getTitel() + " to archive");
         try {
             ArchiveUtils.copyFile(compressedFile, destFile);
             // validation
             if (!MessageDigest.isEqual(origArchiveAfterZipChecksum, ArchiveUtils.createChecksum(destFile))) {
-                logger.error(process.getTitel() + ": " + "Error copying archive file to archive: Copy is not valid. Aborting.");
+                log.error(process.getTitel() + ": " + "Error copying archive file to archive: Copy is not valid. Aborting.");
                 return false;
             }
         } catch (IOException e) {
-            logger.error(process.getTitel() + ": " + "Error validating copied archive. Aborting.");
+            log.error(process.getTitel() + ": " + "Error validating copied archive. Aborting.");
             return false;
         } catch (NoSuchAlgorithmException e) {
-            logger.error(process.getTitel() + ": " + "Error validating copied archive. Aborting.");
+            log.error(process.getTitel() + ": " + "Error validating copied archive. Aborting.");
             return false;
         }
-        logger.info("Zip archive copied to " + destFile.getAbsolutePath() + " and found to be valid.");
+        log.info("Zip archive copied to " + destFile.getAbsolutePath() + " and found to be valid.");
 
         //
         //        // - an anderen Ort kopieren
@@ -289,11 +290,11 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
 
     private void createMessages(String message, Exception e) {
         if (e != null) {
-            logger.error(message, e);
+            log.error(message, e);
             Helper.setFehlerMeldung(message, e);
         } else {
             Helper.setFehlerMeldung(message);
-            logger.error(message);
+            log.error(message);
         }
 
         Helper.addMessageToProcessJournal(process.getId(), LogType.ERROR, message, "automatic");
@@ -313,6 +314,9 @@ public class FileDeliveryWithoutMetsPlugin implements IStepPlugin, IPlugin {
                 .getString("MAIL_SUBJECT", "Leiden University – Digitisation Order Special Collections University Library");
         String MAIL_TEXT = ConfigPlugins.getPluginConfig(this).getString("MAIL_BODY", "{0}");
         MAIL_TEXT = MAIL_TEXT.replace("{0}", downloadUrl);
+
+        VariableReplacer replacer = new VariableReplacer(null, null, process, step);
+        MAIL_TEXT = replacer.replace(MAIL_TEXT);
 
         // Set the host smtp address
         Properties props = new Properties();

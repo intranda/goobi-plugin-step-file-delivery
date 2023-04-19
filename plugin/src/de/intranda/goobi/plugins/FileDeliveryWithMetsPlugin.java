@@ -24,7 +24,6 @@ import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMultipart;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.log4j.Logger;
 import org.goobi.beans.Process;
 import org.goobi.beans.Processproperty;
 import org.goobi.beans.Step;
@@ -42,19 +41,23 @@ import de.sub.goobi.helper.Helper;
 import de.sub.goobi.helper.HttpClientHelper;
 import de.sub.goobi.helper.NIOFileUtils;
 import de.sub.goobi.helper.StorageProvider;
+import de.sub.goobi.helper.VariableReplacer;
 import de.sub.goobi.helper.exceptions.DAOException;
 import de.sub.goobi.helper.exceptions.SwapException;
 import de.sub.goobi.metadaten.MetadatenVerifizierung;
 import de.sub.goobi.persistence.managers.ProcessManager;
+import lombok.extern.log4j.Log4j2;
 import net.xeoh.plugins.base.annotations.PluginImplementation;
 import ugh.exceptions.DocStructHasNoTypeException;
 
+@Log4j2
 @PluginImplementation
 public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
-    private static final Logger logger = Logger.getLogger(FileDeliveryWithMetsPlugin.class);
 
+
+    private static final long serialVersionUID = -4885456174798006968L;
     private String pluginname = "FileDeliveryWithMets";
-    // private Schritt step;
+    private Step step;
     private Process process;
     private String returnPath;
 
@@ -76,7 +79,7 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
 
     @Override
     public void initialize(Step step, String returnPath) {
-        // this.step = step;
+        this.step = step;
         this.process = step.getProzess();
         this.returnPath = returnPath;
     }
@@ -279,11 +282,11 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
 
     private void createMessages(String message, Exception e) {
         if (e != null) {
-            logger.error(message, e);
+            log.error(message, e);
             Helper.setFehlerMeldung(message, e);
         } else {
             Helper.setFehlerMeldung(message);
-            logger.error(message);
+            log.error(message);
         }
         Helper.addMessageToProcessJournal(process.getId(), LogType.ERROR, message, "automatic");
     }
@@ -302,6 +305,8 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
                 .getString("MAIL_SUBJECT", "Leiden University – Digitisation Order Special Collections University Library");
         String MAIL_TEXT = ConfigPlugins.getPluginConfig(this).getString("MAIL_BODY", "{0}");
         MAIL_TEXT = MAIL_TEXT.replace("{0}", downloadUrl);
+        VariableReplacer replacer = new VariableReplacer(null, null, process, step);
+        MAIL_TEXT = replacer.replace(MAIL_TEXT);
 
         // Set the host smtp address
         Properties props = new Properties();

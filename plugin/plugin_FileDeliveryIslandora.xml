@@ -14,7 +14,7 @@
 Dear user,
 &lt;br /&gt;
 &lt;br /&gt;
-Your order has been sent to you.&lt;br /&gt;
+Your order &lt;b&gt;ID {processid}&lt;/b&gt; ordering scans of &lt;b&gt;{process.shelfmark}&lt;/b&gt; has been sent to you.&lt;br /&gt;
 &lt;br /&gt;
 &lt;a href="{0}"&gt;Download file(s)&lt;/a&gt;
 &lt;br /&gt;&lt;br /&gt;
