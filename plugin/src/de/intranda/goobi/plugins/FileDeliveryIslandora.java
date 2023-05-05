@@ -40,13 +40,13 @@ import de.intranda.goobi.plugins.utils.ArchiveUtils;
 import de.sub.goobi.config.ConfigPlugins;
 import de.sub.goobi.config.ConfigurationHelper;
 import de.sub.goobi.helper.Helper;
-import de.sub.goobi.helper.HttpClientHelper;
 import de.sub.goobi.helper.NIOFileUtils;
 import de.sub.goobi.helper.StorageProvider;
 import de.sub.goobi.helper.VariableReplacer;
 import de.sub.goobi.helper.exceptions.DAOException;
 import de.sub.goobi.helper.exceptions.SwapException;
 import de.sub.goobi.persistence.managers.ProcessManager;
+import io.goobi.workflow.api.connection.HttpUtils;
 import lombok.extern.log4j.Log4j2;
 import net.xeoh.plugins.base.annotations.PluginImplementation;
 
@@ -55,8 +55,6 @@ import net.xeoh.plugins.base.annotations.PluginImplementation;
 public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
 
     private static final long serialVersionUID = -7680783972841493378L;
-
-
 
     private String pluginname = "FileDeliveryIslandora";
     private Step step;
@@ -91,9 +89,9 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
         String mailAddress = "";
         String format = "";
         for (Processproperty pe : process.getEigenschaftenList()) {
-            if (pe.getTitel().equalsIgnoreCase("email")) {
+            if ("email".equalsIgnoreCase(pe.getTitel())) {
                 mailAddress = pe.getWert();
-            } else if (pe.getTitel().equalsIgnoreCase("format")) {
+            } else if ("format".equalsIgnoreCase(pe.getTitel())) {
                 format = pe.getWert();
             }
         }
@@ -111,7 +109,7 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
         File deliveryFile = null;
         String imagesFolderName = "";
 
-        if (format.equalsIgnoreCase("PDF")) {
+        if ("PDF".equalsIgnoreCase(format)) {
 
             try {
                 imagesFolderName = process.getImagesDirectory() + "customer_tif";
@@ -127,20 +125,20 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
 
                     // - PDF erzeugen
 
-                    String contentServerUrl = "http://localhost:8080/goobi/api/process/pdf/" + process.getId() + "/full.pdf?resolution=150&convertToGrayscale&imageSource=file://" + imagesFolderName + "&targetFileName=" + process.getTitel() + ".pdf";
+                    String contentServerUrl = "http://localhost:8080/goobi/api/process/pdf/" + process.getId()
+                            + "/full.pdf?resolution=150&convertToGrayscale&imageSource=file://" + imagesFolderName + "&targetFileName="
+                            + process.getTitel() + ".pdf";
 
                     URL goobiContentServerUrl = new URL(contentServerUrl);
                     OutputStream fos = new FileOutputStream(deliveryFile);
 
-                    HttpClientHelper.getStreamFromUrl(fos, goobiContentServerUrl.toString());
+                    HttpUtils.getStreamFromUrl(fos, goobiContentServerUrl.toString());
 
                     fos.close();
 
                 }
 
-            } catch (SwapException e1) {
-                log.error(process.getTitel() + ": " + e1);
-            } catch (IOException e1) {
+            } catch (SwapException | IOException e1) {
                 log.error(process.getTitel() + ": " + e1);
             }
 
@@ -182,11 +180,7 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
         byte[] origArchiveAfterZipChecksum = null;
         try {
             origArchiveAfterZipChecksum = ArchiveUtils.createChecksum(compressedFile);
-        } catch (NoSuchAlgorithmException e) {
-            createMessages("Failed to zip files to archive for " + process.getTitel() + ". Aborting.", e, compressedFile);
-
-            return false;
-        } catch (IOException e) {
+        } catch (NoSuchAlgorithmException | IOException e) {
             createMessages("Failed to zip files to archive for " + process.getTitel() + ". Aborting.", e, compressedFile);
 
             return false;
@@ -210,11 +204,7 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
                         compressedFile);
                 return false;
             }
-        } catch (IOException e) {
-            createMessages(process.getTitel() + ": " + "Error validating copied archive. Aborting.", e, compressedFile);
-
-            return false;
-        } catch (NoSuchAlgorithmException e) {
+        } catch (IOException | NoSuchAlgorithmException e) {
             createMessages(process.getTitel() + ": " + "Error validating copied archive. Aborting.", e, compressedFile);
             return false;
         }
@@ -230,7 +220,7 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
 
         boolean matched = false;
         for (Processproperty pe : process.getEigenschaftenList()) {
-            if (pe.getTitel().equals(PROPERTYTITLE)) {
+            if (PROPERTYTITLE.equals(pe.getTitel())) {
                 pe.setWert(downloadUrl);
                 matched = true;
                 break;
@@ -257,10 +247,7 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
         String[] mail = { mailAddress };
         try {
             postMail(mail, downloadUrl);
-        } catch (UnsupportedEncodingException e) {
-            createMessages("PluginErrorMailError", e, compressedFile);
-            return false;
-        } catch (MessagingException e) {
+        } catch (UnsupportedEncodingException | MessagingException e) {
             createMessages("PluginErrorMailError", e, compressedFile);
             return false;
         }
@@ -334,7 +321,7 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
 
         // Set the host smtp address
         Properties props = new Properties();
-        if ((SMTP_USE_STARTTLS != null) && SMTP_USE_STARTTLS.equals("1")) {
+        if ((SMTP_USE_STARTTLS != null) && "1".equals(SMTP_USE_STARTTLS)) {
             props.setProperty("mail.transport.protocol", "smtp");
             props.setProperty("mail.smtp.auth", "true");
             props.setProperty("mail.smtp.port", "25");
@@ -342,7 +329,7 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
             props.setProperty("mail.smtp.ssl.trust", "*");
             props.setProperty("mail.smtp.starttls.enable", "true");
             props.setProperty("mail.smtp.starttls.required", "true");
-        } else if ((SMTP_USE_SSL != null) && SMTP_USE_SSL.equals("1")) {
+        } else if ((SMTP_USE_SSL != null) && "1".equals(SMTP_USE_SSL)) {
             props.setProperty("mail.transport.protocol", "smtp");
             props.setProperty("mail.smtp.host", SMTP_SERVER);
             props.setProperty("mail.smtp.auth", "true");
