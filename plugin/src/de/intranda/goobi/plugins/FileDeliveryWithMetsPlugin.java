@@ -38,7 +38,6 @@ import de.schlichtherle.io.DefaultArchiveDetector;
 import de.sub.goobi.config.ConfigPlugins;
 import de.sub.goobi.config.ConfigurationHelper;
 import de.sub.goobi.helper.Helper;
-import de.sub.goobi.helper.HttpClientHelper;
 import de.sub.goobi.helper.NIOFileUtils;
 import de.sub.goobi.helper.StorageProvider;
 import de.sub.goobi.helper.VariableReplacer;
@@ -46,6 +45,7 @@ import de.sub.goobi.helper.exceptions.DAOException;
 import de.sub.goobi.helper.exceptions.SwapException;
 import de.sub.goobi.metadaten.MetadatenVerifizierung;
 import de.sub.goobi.persistence.managers.ProcessManager;
+import io.goobi.workflow.api.connection.HttpUtils;
 import lombok.extern.log4j.Log4j2;
 import net.xeoh.plugins.base.annotations.PluginImplementation;
 import ugh.exceptions.DocStructHasNoTypeException;
@@ -53,7 +53,6 @@ import ugh.exceptions.DocStructHasNoTypeException;
 @Log4j2
 @PluginImplementation
 public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
-
 
     private static final long serialVersionUID = -4885456174798006968L;
     private String pluginname = "FileDeliveryWithMets";
@@ -89,9 +88,9 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
         String mailAddress = "";
         String format = "";
         for (Processproperty pe : process.getEigenschaftenList()) {
-            if (pe.getTitel().equalsIgnoreCase("email")) {
+            if ("email".equalsIgnoreCase(pe.getTitel())) {
                 mailAddress = pe.getWert();
-            } else if (pe.getTitel().equalsIgnoreCase("format")) {
+            } else if ("format".equalsIgnoreCase(pe.getTitel())) {
                 format = pe.getWert();
             }
         }
@@ -100,7 +99,7 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
         }
 
         File deliveryFile = null;
-        if (format.equalsIgnoreCase("PDF")) {
+        if ("PDF".equalsIgnoreCase(format)) {
 
             // TODO sicherstellen das filegroup PDF erzeugt und in im gcs für pdf eingestellt wurde
             MetadatenVerifizierung mv = new MetadatenVerifizierung();
@@ -142,19 +141,13 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
 
                 OutputStream fos = new FileOutputStream(deliveryFile);
 
-                HttpClientHelper.getStreamFromUrl(fos, goobiContentServerUrl.toString());
+                HttpUtils.getStreamFromUrl(fos, goobiContentServerUrl.toString());
 
                 fos.close();
 
                 FileUtils.deleteQuietly(new File(metsfile));
 
-            } catch (DocStructHasNoTypeException e) {
-                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-                return false;
-            } catch (SwapException e) {
-                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-                return false;
-            } catch (IOException e) {
+            } catch (DocStructHasNoTypeException | SwapException | IOException e) {
                 createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
                 return false;
             }
@@ -189,10 +182,7 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
 
                 deliveryFile = new File(zipFile.getAbsolutePath());
 
-            } catch (SwapException e) {
-                createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
-                return false;
-            } catch (IOException e) {
+            } catch (SwapException | IOException e) {
                 createMessages(Helper.getTranslation("PluginErrorInvalidMetadata"), e);
                 return false;
             }
@@ -215,7 +205,7 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
 
         boolean matched = false;
         for (Processproperty pe : process.getEigenschaftenList()) {
-            if (pe.getTitel().equals(PROPERTYTITLE)) {
+            if (PROPERTYTITLE.equals(pe.getTitel())) {
                 pe.setWert(downloadUrl);
                 matched = true;
                 break;
@@ -242,10 +232,7 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
         String[] mail = { mailAddress };
         try {
             postMail(mail, downloadUrl);
-        } catch (UnsupportedEncodingException e) {
-            createMessages("PluginErrorMailError", e);
-            return false;
-        } catch (MessagingException e) {
+        } catch (UnsupportedEncodingException | MessagingException e) {
             createMessages("PluginErrorMailError", e);
             return false;
         }
@@ -310,7 +297,7 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
 
         // Set the host smtp address
         Properties props = new Properties();
-        if ((SMTP_USE_STARTTLS != null) && SMTP_USE_STARTTLS.equals("1")) {
+        if ((SMTP_USE_STARTTLS != null) && "1".equals(SMTP_USE_STARTTLS)) {
             props.setProperty("mail.transport.protocol", "smtp");
             props.setProperty("mail.smtp.auth", "true");
             props.setProperty("mail.smtp.port", "25");
@@ -318,7 +305,7 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
             props.setProperty("mail.smtp.ssl.trust", "*");
             props.setProperty("mail.smtp.starttls.enable", "true");
             props.setProperty("mail.smtp.starttls.required", "true");
-        } else if ((SMTP_USE_SSL != null) && SMTP_USE_SSL.equals("1")) {
+        } else if ((SMTP_USE_SSL != null) && "1".equals(SMTP_USE_SSL)) {
             props.setProperty("mail.transport.protocol", "smtp");
             props.setProperty("mail.smtp.host", SMTP_SERVER);
             props.setProperty("mail.smtp.auth", "true");
