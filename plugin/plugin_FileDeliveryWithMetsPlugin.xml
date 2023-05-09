@@ -3,12 +3,7 @@
 	<contentServerUrl>http://localhost:8080/goobi/gcs/cs?action=pdf&amp;metsFile=file://</contentServerUrl>
 	<destinationFolder>/opt/digiverso/other/leiden01/delivery/</destinationFolder>
 	<downloadServer>https://leiden01-delivery.intranda.com/</downloadServer>
-	<SMTP_SERVER>mail.intranda.com</SMTP_SERVER>
-	<SMTP_USER></SMTP_USER>
-	<SMTP_PASSWORD></SMTP_PASSWORD>
-	<SMTP_USE_STARTTLS>1</SMTP_USE_STARTTLS>
-	<SMTP_USE_SSL>0</SMTP_USE_SSL>
-	<SENDER_ADDRESS></SENDER_ADDRESS>
+
 	<MAIL_SUBJECT>Leiden University - Digitisation Order Special Collections University Library</MAIL_SUBJECT>
 	<MAIL_BODY>
 Dear user,

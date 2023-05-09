@@ -5,27 +5,16 @@ import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Properties;
-
-import javax.mail.Message;
-import javax.mail.MessagingException;
-import javax.mail.Session;
-import javax.mail.Transport;
-import javax.mail.internet.InternetAddress;
-import javax.mail.internet.MimeBodyPart;
-import javax.mail.internet.MimeMessage;
-import javax.mail.internet.MimeMultipart;
 
 import org.apache.commons.configuration.XMLConfiguration;
 import org.apache.commons.io.FileUtils;
+import org.goobi.api.mail.SendMail;
 import org.goobi.beans.Process;
 import org.goobi.beans.Processproperty;
 import org.goobi.beans.Step;
@@ -126,8 +115,8 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
                     // - PDF erzeugen
 
                     String contentServerUrl = "http://localhost:8080/goobi/api/process/pdf/" + process.getId()
-                            + "/full.pdf?resolution=150&convertToGrayscale&imageSource=file://" + imagesFolderName + "&targetFileName="
-                            + process.getTitel() + ".pdf";
+                    + "/full.pdf?resolution=150&convertToGrayscale&imageSource=file://" + imagesFolderName + "&targetFileName="
+                    + process.getTitel() + ".pdf";
 
                     URL goobiContentServerUrl = new URL(contentServerUrl);
                     OutputStream fos = new FileOutputStream(deliveryFile);
@@ -243,14 +232,8 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
         }
 
         // - mail versenden
+        postMail(mailAddress, downloadUrl);
 
-        String[] mail = { mailAddress };
-        try {
-            postMail(mail, downloadUrl);
-        } catch (UnsupportedEncodingException | MessagingException e) {
-            createMessages("PluginErrorMailError", e, compressedFile);
-            return false;
-        }
         if (compressedFile != null && compressedFile.exists()) {
             FileUtils.deleteQuietly(compressedFile);
         }
@@ -300,77 +283,20 @@ public class FileDeliveryIslandora implements IStepPlugin, IPlugin {
 
     }
 
-    public void postMail(String recipients[], String downloadUrl) throws MessagingException, UnsupportedEncodingException {
+    public void postMail(String recipient, String downloadUrl)  {
 
         @SuppressWarnings("deprecation")
         XMLConfiguration config = ConfigPlugins.getPluginConfig(this);
 
-        String SMTP_SERVER = config.getString("SMTP_SERVER", "mail.intranda.com");
-        String SMTP_USER = config.getString("SMTP_USER", "TODO");
-        String SMTP_PASSWORD = config.getString("SMTP_PASSWORD", "TODO");
-        String SMTP_USE_STARTTLS = config.getString("SMTP_USE_STARTTLS", "0");
-        String SMTP_USE_SSL = config.getString("SMTP_USE_SSL", "1");
-        String SENDER_ADDRESS = config.getString("SENDER_ADDRESS", "TODO");
-
-        String MAIL_SUBJECT = config.getString("MAIL_SUBJECT", "Leiden University – Digitisation Order Special Collections University Library");
-        String MAIL_TEXT = config.getString("MAIL_BODY", "{0}");
-        MAIL_TEXT = MAIL_TEXT.replace("{0}", downloadUrl);
+        String subject = config.getString("MAIL_SUBJECT", "Leiden University – Digitisation Order Special Collections University Library");
+        String mailBody = config.getString("MAIL_BODY", "{0}");
+        mailBody = mailBody.replace("{0}", downloadUrl);
 
         VariableReplacer replacer = new VariableReplacer(null, null, process, step);
-        MAIL_TEXT = replacer.replace(MAIL_TEXT);
+        mailBody = replacer.replace(mailBody);
 
-        // Set the host smtp address
-        Properties props = new Properties();
-        if ((SMTP_USE_STARTTLS != null) && "1".equals(SMTP_USE_STARTTLS)) {
-            props.setProperty("mail.transport.protocol", "smtp");
-            props.setProperty("mail.smtp.auth", "true");
-            props.setProperty("mail.smtp.port", "25");
-            props.setProperty("mail.smtp.host", SMTP_SERVER);
-            props.setProperty("mail.smtp.ssl.trust", "*");
-            props.setProperty("mail.smtp.starttls.enable", "true");
-            props.setProperty("mail.smtp.starttls.required", "true");
-        } else if ((SMTP_USE_SSL != null) && "1".equals(SMTP_USE_SSL)) {
-            props.setProperty("mail.transport.protocol", "smtp");
-            props.setProperty("mail.smtp.host", SMTP_SERVER);
-            props.setProperty("mail.smtp.auth", "true");
-            props.setProperty("mail.smtp.port", "465");
-            props.setProperty("mail.smtp.ssl.enable", "true");
-            props.setProperty("mail.smtp.ssl.trust", "*");
+        SendMail.getInstance().sendMailToUser(mailBody, subject, recipient);
 
-        } else {
-            props.setProperty("mail.transport.protocol", "smtp");
-            props.setProperty("mail.smtp.auth", "true");
-            props.setProperty("mail.smtp.port", "25");
-            props.setProperty("mail.smtp.host", SMTP_SERVER);
-        }
-
-        Session session = Session.getDefaultInstance(props, null);
-        Message msg = new MimeMessage(session);
-
-        InternetAddress addressFrom = new InternetAddress(SENDER_ADDRESS);
-        msg.setFrom(addressFrom);
-        InternetAddress[] addressTo = new InternetAddress[recipients.length];
-        for (int i = 0; i < recipients.length; i++) {
-            addressTo[i] = new InternetAddress(recipients[i]);
-        }
-        msg.setRecipients(Message.RecipientType.TO, addressTo);
-
-        // create mail
-        MimeMultipart multipart = new MimeMultipart();
-
-        msg.setSubject(MAIL_SUBJECT);
-        MimeBodyPart messageHtmlPart = new MimeBodyPart();
-        messageHtmlPart.setText(MAIL_TEXT, "utf-8");
-        messageHtmlPart.setHeader("Content-Type", "text/html; charset=\"utf-8\"");
-        multipart.addBodyPart(messageHtmlPart);
-
-        msg.setContent(multipart);
-        msg.setSentDate(new Date());
-
-        Transport transport = session.getTransport();
-        transport.connect(SMTP_USER, SMTP_PASSWORD);
-        transport.sendMessage(msg, msg.getRecipients(Message.RecipientType.TO));
-        transport.close();
     }
 
     private static FilenameFilter tiffilter = new FilenameFilter() {
