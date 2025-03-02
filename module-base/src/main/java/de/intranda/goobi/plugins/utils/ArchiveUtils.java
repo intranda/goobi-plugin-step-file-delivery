@@ -4,14 +4,14 @@
  * 
  * ************************* CONFIDENTIAL ********************************
  * 
- * [2003] - [2013] intranda GmbH, Bertha-von-Suttner-Str. 9, 37085 Göttingen, Germany 
+ * [2003] - [2013] intranda GmbH, Bertha-von-Suttner-Str. 9, 37085 Göttingen, Germany
  * 
  * All Rights Reserved.
  * 
- * NOTICE: All information contained herein is protected by copyright. 
- * The source code contained herein is proprietary of intranda GmbH. 
- * The dissemination, reproduction, distribution or modification of 
- * this source code, without prior written permission from intranda GmbH, 
+ * NOTICE: All information contained herein is protected by copyright.
+ * The source code contained herein is proprietary of intranda GmbH.
+ * The dissemination, reproduction, distribution or modification of
+ * this source code, without prior written permission from intranda GmbH,
  * is expressly forbidden and a violation of international copyright law.
  * 
  *************************************************************************/
@@ -42,7 +42,6 @@ import org.apache.commons.compress.archivers.ArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
-
 import org.apache.log4j.Logger;
 
 /**
@@ -106,14 +105,13 @@ public class ArchiveUtils {
      * @throws IOException
      */
     public static ArrayList<File> unzipFile(File source, File destDir) throws IOException {
-        ArrayList<File> fileList = new ArrayList<File>();
+        ArrayList<File> fileList = new ArrayList<>();
 
-        if (!destDir.isDirectory())
+        if (!destDir.isDirectory()) {
             destDir.mkdirs();
+        }
 
-        ZipInputStream in = null;
-        try {
-            in = new ZipInputStream((new BufferedInputStream(new FileInputStream(source))));
+        try (ZipInputStream in = new ZipInputStream((new BufferedInputStream(new FileInputStream(source))))) {
             ZipEntry entry;
             while ((entry = in.getNextEntry()) != null) {
                 File tempFile = new File(destDir, entry.getName());
@@ -131,8 +129,9 @@ public class ArchiveUtils {
                 // for (int c = in.read(); c != -1; c = in.read()) {
                 // out.write(c);
                 // }
-                if (entry != null)
+                if (entry != null) {
                     in.closeEntry();
+                }
                 if (out != null) {
                     out.flush();
                     out.close();
@@ -142,9 +141,6 @@ public class ArchiveUtils {
             logger.debug("Encountered FileNotFound Exception, probably due to trying to extract a directory. Ignoring");
         } catch (IOException e) {
             logger.error(e.toString(), e);
-        } finally {
-            if (in != null)
-                in.close();
         }
 
         return fileList;
@@ -228,28 +224,26 @@ public class ArchiveUtils {
         if (file.isFile()) {
 
             FileInputStream fis = new FileInputStream(file);
-            BufferedInputStream bis = new BufferedInputStream(fis);
+            try (BufferedInputStream bis = new BufferedInputStream(fis)) {
 
-            TarArchiveEntry entry = new TarArchiveEntry(file, path);
-            //			ArchiveEntry entry = tos.createArchiveEntry(file, path);
+                TarArchiveEntry entry = new TarArchiveEntry(file, path);
 
-            if (tos != null) {
-                tos.putArchiveEntry(entry);
-                int size;
-                byte[] buffer = new byte[2048];
-                while ((size = bis.read(buffer, 0, buffer.length)) != -1) {
-                    tos.write(buffer, 0, size);
-                    if (checksum != null && size > 0) {
-                        checksum.update(buffer, 0, size);
+                if (tos != null) {
+                    tos.putArchiveEntry(entry);
+                    int size;
+                    byte[] buffer = new byte[2048];
+                    while ((size = bis.read(buffer, 0, buffer.length)) != -1) {
+                        tos.write(buffer, 0, size);
+                        if (checksum != null && size > 0) {
+                            checksum.update(buffer, 0, size);
+                        }
                     }
+                    tos.closeArchiveEntry();
                 }
-                tos.closeArchiveEntry();
             }
-
-            bis.close();
         } else if (file.isDirectory()) {
             if (tos != null) {
-                ArchiveEntry dirEntry = tos.createArchiveEntry(file, path + File.separator);
+                TarArchiveEntry dirEntry = tos.createArchiveEntry(file, path + File.separator);
                 if (dirEntry != null) {
                     tos.putArchiveEntry(dirEntry);
                     tos.closeArchiveEntry();
@@ -274,10 +268,11 @@ public class ArchiveUtils {
      * @throws IOException
      */
     public static ArrayList<File> untarFile(File source, File destDir) throws IOException {
-        ArrayList<File> fileList = new ArrayList<File>();
+        ArrayList<File> fileList = new ArrayList<>();
 
-        if (!destDir.isDirectory())
+        if (!destDir.isDirectory()) {
             destDir.mkdirs();
+        }
 
         boolean isGzip = false;
         if (source.getName().endsWith(".gz")) {
@@ -323,8 +318,9 @@ public class ArchiveUtils {
         } catch (FileNotFoundException e) {
             logger.debug("Encountered FileNotFound Exception, probably due to trying to extract a directory. Ignoring");
         } finally {
-            if (in != null)
+            if (in != null) {
                 in.close();
+            }
         }
 
         return fileList;
@@ -427,14 +423,18 @@ public class ArchiveUtils {
             return false;
         } finally {
             try {
-                if (in != null)
+                if (in != null) {
                     in.close();
-                if (zip != null)
+                }
+                if (zip != null) {
                     zip.close();
-                if (bis != null)
+                }
+                if (bis != null) {
                     bis.close();
-                if (fis != null)
+                }
+                if (fis != null) {
                     fis.close();
+                }
             } catch (IOException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
@@ -470,21 +470,21 @@ public class ArchiveUtils {
 
     public static String getMD5Checksum(File file) throws NoSuchAlgorithmException, IOException {
         byte[] b = createMD5Checksum(file);
-        String result = "";
+        StringBuilder result = new StringBuilder();
 
-        for (int i = 0; i < b.length; i++) {
-            result += Integer.toString((b[i] & 0xff) + 0x100, 16).substring(1);
+        for (byte element : b) {
+            result.append(Integer.toString((element & 0xff) + 0x100, 16).substring(1));
         }
-        return result;
+        return result.toString();
     }
 
     public static String convertChecksumToHex(byte[] checksum) {
-        String result = "";
+        StringBuilder result = new StringBuilder();
 
-        for (int i = 0; i < checksum.length; i++) {
-            result += Integer.toString((checksum[i] & 0xff) + 0x100, 16).substring(1);
+        for (byte element : checksum) {
+            result.append(Integer.toString((element & 0xff) + 0x100, 16).substring(1));
         }
-        return result;
+        return result.toString();
     }
 
     public static String getRelativePath(File file, File relativeParent) {
@@ -591,7 +591,6 @@ public class ArchiveUtils {
         try {
             in = new ZipInputStream((new BufferedInputStream(new FileInputStream(zipFile))));
 
-
             while ((entry = in.getNextEntry()) != null) {
                 counter++;
                 File f = new File(entry.getName());
@@ -657,8 +656,9 @@ public class ArchiveUtils {
             return false;
         } finally {
             try {
-                if (in != null)
+                if (in != null) {
                     in.close();
+                }
             } catch (IOException e) {
                 logger.debug("Cannot close archive entry");
                 return false;
