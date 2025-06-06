@@ -14,6 +14,7 @@ import java.util.List;
 import org.apache.commons.configuration.XMLConfiguration;
 import org.apache.commons.io.FileUtils;
 import org.goobi.api.mail.SendMail;
+import org.goobi.beans.GoobiProperty;
 import org.goobi.beans.Process;
 import org.goobi.beans.Processproperty;
 import org.goobi.beans.Step;
@@ -77,7 +78,7 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
     public boolean execute() {
         String mailAddress = "";
         String format = "";
-        for (Processproperty pe : process.getEigenschaftenList()) {
+        for (GoobiProperty pe : process.getEigenschaftenList()) {
             if ("email".equalsIgnoreCase(pe.getTitel())) {
                 mailAddress = pe.getWert();
             } else if ("format".equalsIgnoreCase(pe.getTitel())) {
@@ -194,7 +195,7 @@ public class FileDeliveryWithMetsPlugin implements IStepPlugin, IPlugin {
         // - Name/Link als Property speichern
 
         boolean matched = false;
-        for (Processproperty pe : process.getEigenschaftenList()) {
+        for (GoobiProperty pe : process.getEigenschaftenList()) {
             if (PROPERTYTITLE.equals(pe.getTitel())) {
                 pe.setWert(downloadUrl);
                 matched = true;
