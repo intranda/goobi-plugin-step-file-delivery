@@ -113,8 +113,12 @@ public class ArchiveUtils {
 
         try (ZipInputStream in = new ZipInputStream((new BufferedInputStream(new FileInputStream(source))))) {
             ZipEntry entry;
+            Path destBase = destDir.toPath().normalize();
             while ((entry = in.getNextEntry()) != null) {
-                File tempFile = new File(destDir, entry.getName());
+                File tempFile = destBase.resolve(entry.getName()).normalize().toFile();
+                if (!tempFile.toPath().startsWith(destBase)) {
+                    throw new IOException("Zip Slip detected, rejecting entry: " + entry.getName());
+                }
                 fileList.add(tempFile);
                 tempFile.getParentFile().mkdirs();
                 tempFile.createNewFile();
@@ -147,7 +151,7 @@ public class ArchiveUtils {
     }
 
     /**
-     * Create a tar archive and write results into Array of Strings. Returns the MD5 checksum as byte-Array
+     * Create a tar archive and write results into Array of Strings. Returns the SHA-256 checksum as byte-Array
      * 
      * @param source
      * @return
@@ -178,9 +182,9 @@ public class ArchiveUtils {
                 zip = new GZIPOutputStream(bos);
             }
             try {
-                checksum = MessageDigest.getInstance("MD5");
+                checksum = MessageDigest.getInstance("SHA-256");
             } catch (NoSuchAlgorithmException e) {
-                logger.error("No checksum algorithm \"MD5\". Disabling checksum creation");
+                logger.error("No checksum algorithm \"SHA-256\". Disabling checksum creation");
                 checksum = null;
             }
             if (gzip) {
@@ -399,8 +403,8 @@ public class ArchiveUtils {
                             continue;
                         }
                         logger.debug("Testing entry against original file " + origFile.getAbsolutePath());
-                        byte[] tempFileChecksum = createMD5Checksum(tempFile);
-                        byte[] origFileChecksum = createMD5Checksum(origFile);
+                        byte[] tempFileChecksum = createSHA256Checksum(tempFile);
+                        byte[] origFileChecksum = createSHA256Checksum(origFile);
                         if (!MessageDigest.isEqual(tempFileChecksum, origFileChecksum)) {
                             logger.debug("Found corrupted archive entry: Checksums don't match");
                             return false;
@@ -445,18 +449,18 @@ public class ArchiveUtils {
     }
 
     /**
-     * Returns the MD5-Checksum of a file
-     * 
+     * Returns the SHA-256 checksum of a file
+     *
      * @param file
      * @return
      * @throws NoSuchAlgorithmException
      * @throws IOException
      */
-    public static byte[] createMD5Checksum(File file) throws NoSuchAlgorithmException, IOException {
+    public static byte[] createSHA256Checksum(File file) throws NoSuchAlgorithmException, IOException {
         InputStream fis = new FileInputStream(file);
 
         byte[] buffer = new byte[1024];
-        MessageDigest complete = MessageDigest.getInstance("MD5");
+        MessageDigest complete = MessageDigest.getInstance("SHA-256");
         int numRead;
         do {
             numRead = fis.read(buffer);
@@ -468,8 +472,8 @@ public class ArchiveUtils {
         return complete.digest();
     }
 
-    public static String getMD5Checksum(File file) throws NoSuchAlgorithmException, IOException {
-        byte[] b = createMD5Checksum(file);
+    public static String getSHA256Checksum(File file) throws NoSuchAlgorithmException, IOException {
+        byte[] b = createSHA256Checksum(file);
         StringBuilder result = new StringBuilder();
 
         for (byte element : b) {
@@ -518,9 +522,9 @@ public class ArchiveUtils {
         try {
             FileOutputStream fos = new FileOutputStream(zipFile, true);
             try {
-                checksum = MessageDigest.getInstance("MD5");
+                checksum = MessageDigest.getInstance("SHA-256");
             } catch (NoSuchAlgorithmException e) {
-                logger.error("No checksum algorithm \"MD5\". Disabling checksum creation");
+                logger.error("No checksum algorithm \"SHA-256\". Disabling checksum creation");
                 checksum = null;
             }
             zos = new ZipOutputStream(fos);
@@ -673,7 +677,7 @@ public class ArchiveUtils {
     }
 
     /**
-     * Creates the MD5-checksum as byte-Array of the given file
+     * Creates the SHA-256 checksum as byte-Array of the given file
      * 
      * @param filename
      * @return
@@ -685,7 +689,7 @@ public class ArchiveUtils {
         InputStream fis = new FileInputStream(file);
 
         byte[] buffer = new byte[1024];
-        MessageDigest complete = MessageDigest.getInstance("MD5");
+        MessageDigest complete = MessageDigest.getInstance("SHA-256");
         int numRead;
         do {
             numRead = fis.read(buffer);
