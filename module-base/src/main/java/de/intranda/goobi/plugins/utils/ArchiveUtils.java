@@ -296,9 +296,13 @@ public class ArchiveUtils {
             } else {
                 in = new TarArchiveInputStream(bis);
             }
+            Path destBase = destDir.toPath().normalize();
             ArchiveEntry entry;
             while ((entry = in.getNextEntry()) != null) {
-                File tempFile = new File(destDir, entry.getName());
+                File tempFile = destBase.resolve(entry.getName()).normalize().toFile();
+                if (!tempFile.toPath().startsWith(destBase)) {
+                    throw new IOException("Tar Slip detected, rejecting entry: " + entry.getName());
+                }
                 if (entry.isDirectory()) {
                     tempFile.mkdirs();
                     continue;
